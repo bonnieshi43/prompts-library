@@ -5,7 +5,7 @@ type: feature-analysis
 # 使用场景
 
 适用于：
-- 新功能（Feature）开发 PR
+- 新功能（Feature）开发
 - 功能增强或流程变更
 - 可能影响数据流、权限、报表渲染逻辑的改动
 
