@@ -9,7 +9,7 @@ tags:
 source: https://www.inetsoft.com/docs/stylebi/InetSoftUserDocumentation/1.0.0/viewsheet/ChartTypes.html
 ---
 
-# Knowledge Extraction - SStyleBI Chart Classification
+# Knowledge Extraction - StyleBI Chart Classification
 
 This document provides a **high-level classification framework for StyleBI chart types**.  
 The goal is to organize charts based on shared structural or functional characteristics.
