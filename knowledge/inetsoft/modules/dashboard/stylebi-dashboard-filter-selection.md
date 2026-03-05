@@ -10,8 +10,7 @@ type: dashboard-design-filter
 tags:
   - selection
   - filter
-source: StyleBI docs - Use Filter Components
-lang: en-US
+source: https://www.inetsoft.com/docs/stylebi/InetSoftUserDocumentation/1.0.0/viewsheet/UseFilterComponents.html
 ---
 
 # Knowledge Extraction - StyleBI Selection Components
