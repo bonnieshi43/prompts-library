@@ -30,7 +30,7 @@ Currently supported formats:
 - JPG
 - PNG
 - gif
-- archive
+- Extract archive files
 
 Users can upload custom shape images in these formats.
 
