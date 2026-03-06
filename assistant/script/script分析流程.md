@@ -55,8 +55,7 @@
    避免在同一测试用例中组合多个与script相关的条件（eg1.同时使用 runquery 和 function），因为这会导致无法隔离是哪个规则导致 script = true
 4. 每条规则只能出现在一个测试用例中，每个测试用例只能验证一条规则，触发同一规则的不同措辞不应被视为不同的测试用例。
    eg."write a script" 和 "edit the existing script" 都是对script关键字明确提及的测试,只需要一条case
-   
-文件保存到本地
+5. 所有的case显示在一个表格中,输出保存到md文件
 ```
 
 ### 第四阶段：Case Review
