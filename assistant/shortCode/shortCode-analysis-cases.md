@@ -358,6 +358,109 @@ To view the full analysis, see [View Full Report](#URL_2048).
 
 ---
 
+## 七、两阶段测试策略
+
+### 根本原因分析
+
+Short code 在生产环境中不稳定，根本原因不是 short code 规则本身有误，而是**规则叠加压力**导致的失稳：
+
+```
+大体积 doc（20+ 步骤、多个 IMG/URL short code）
+  + 复杂 answerRules（多 phase workflow）
+  + outputStyle（语言跟随用户 → 触发翻译冲动）
+  + stepByStepFidelity（大量步骤 → 模型倾向压缩输出）
+  + contextInput（上下文注入改写步骤）
+──────────────────────────────────────────────────
+= short code 在某些轮次被截断、翻译或随步骤一起被省略
+```
+
+在小 doc + 规则隔离环境下模型表现正常，但全量规则同时生效 + doc 体积大时，模型在"减少输出长度"或"语言一致性"等压力下牺牲了 short code 完整性。
+
+---
+
+### 第一阶段：规则隔离验证（手工构造 doc）
+
+**目标**：确认规则本身定义正确，模型在无干扰时能遵守。建立稳定基线。
+
+**方法**：
+- 手工构造最小 doc，只含目标场景的 short code 结构
+- 按 C1–C5 逐 case 执行，每次只验证一类规则
+- 通过全部 case 后，基线确立
+
+**doc 来源**：手工编写，参考原始 T Case 索引表中的 doc 片段示例。
+
+---
+
+### 第二阶段：压力整合测试（真实 doc）
+
+**目标**：发现规则在实际叠加环境下的失稳点，复现生产中出现过的 short code 错误。
+
+**doc 来源**：开启 `DUMP_DOCS=true`，从真实对话中收集 dump 文件，从中挑选：
+1. 含 short code 数量最多的 doc（压力最大）
+2. 历史上曾触发 short code 丢失的问题对应的 doc（复现已知 bug）
+3. 包含多步骤 + 连续 IMG 组合的 doc（最容易出错的结构）
+
+**测试场景**：
+
+#### S1 — doc 体积压力
+
+| 项 | 内容 |
+|----|------|
+| doc | 真实 dump doc，含 20+ 步骤、每步带 IMG short code，以及多个 URL/BTN short code |
+| query | 与该 doc 对应的原始问题 |
+| 关注点 | 模型在输出大量步骤时，是否因"压缩输出"丢弃步骤中的 `[...](#IMG_xxxx)` |
+| 对应规则 | shortCodeIntegrity 规则 5、stepByStepFidelity Rule 3 |
+
+#### S2 — 语言规则冲突压力
+
+| 项 | 内容 |
+|----|------|
+| doc | 真实 doc，含多个英文 label 的 BTN/URL short code |
+| query | 中文提问 |
+| prompt 环境 | 完整 answerRules + outputStyle（含语言跟随规则）同时生效 |
+| 关注点 | outputStyle 的"答案语言跟随用户"规则是否在全量 prompt 下压过 short code verbatim 要求，导致 label 被翻译 |
+| 对应规则 | shortCodeIntegrity 规则 4、outputStyle [Language]、agentAnswerRules 优先级规则 |
+
+#### S3 — 多规则同时生效压力
+
+| 项 | 内容 |
+|----|------|
+| doc | 真实 doc，步骤 + IMG + URL + BTN 混合 |
+| prompt 环境 | answerRules + outputStyle + stepByStepFidelity + referenceLink 全部加载 |
+| 关注点 | 格式规则（代码块、UI 格式化、加粗）是否在全量 prompt 下干预了 short code |
+| 对应规则 | outputStyle 两条豁免规则、stepByStepFidelity Rule 3、agentAnswerRules 优先级 |
+
+#### S4 — 上下文注入 + 大体积 doc
+
+| 项 | 内容 |
+|----|------|
+| doc | 真实 doc，含步骤 + IMG short code |
+| context | 真实 bindingContext 或 dataContext（含字段名、表名等具体数据） |
+| 关注点 | 上下文注入是否在大 doc 环境下导致模型改写步骤并顺带删除关联 short code |
+| 对应规则 | contextInput 规则、shortCodeIntegrity 规则 5 |
+
+---
+
+### 两阶段执行顺序
+
+```
+第一阶段（手工 doc）
+  ├── C1 综合正向        → 基线验证
+  ├── C2 各类改写违规    → 负向覆盖
+  ├── C3 禁止推断伪造    → 负向覆盖
+  ├── C4 步骤绑定 + 上下文注入 → 高风险覆盖
+  └── C5 优先级冲突      → 补充验证
+         ↓ 全部通过，基线确立
+第二阶段（真实 doc）
+  ├── S1 doc 体积压力    → 发现压缩丢失
+  ├── S2 语言规则冲突    → 发现翻译失稳
+  ├── S3 多规则叠加      → 发现格式干预
+  └── S4 上下文 + 大 doc → 发现注入改写
+         ↓ 失败 case → 提炼为新的手工 case 加入第一阶段
+```
+
+---
+
 ## 五、规则体系结构图
 
 ```
