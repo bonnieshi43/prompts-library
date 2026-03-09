@@ -183,7 +183,7 @@ User Question
 
 | 用例编号 | 场景/类型 | 用户问题（多轮用例含对话历史） | 预期 `need_report_issue` | 设计意图 |
 |---------|----------|-------------------------------|:------------------------:|---------|
-| TC-001 | 产品故障/报错 | `Every time I try to export a report to PDF in StyleBI, I get "Export failed: Internal server error (code 500)". This happens on every attempt.` | `true` | 验证包含明确错误码和失败描述的问题，能被识别为产品故障/报错，返回 `true`。 |
+| TC-001 | 产品故障/报错 | `My viewsheet fails to load and shows "Internal Server Error (500)" every time I open it.` | `true` | 验证包含明确错误码和失败描述的问题，能被识别为产品故障/报错，返回 `true`。 |
 | TC-002 | 结果错误/不一致 | `The revenue total on my StyleBI dashboard shows $120,000, but running the same query in the worksheet returns $115,000. The numbers don't match between views.` | `true` | 验证描述系统两处输出结果不一致的问题，能被识别为结果异常，返回 `true`。 |
 | TC-003 | UI/图表显示异常 + 数据不更新 | `My dashboard's sales chart has been showing the same figures since Monday — the data isn't refreshing at all — and the chart itself renders as a blank panel half the time.` | `true` | 验证同时包含图表显示缺陷与数据不更新症状的问题，能被识别为 UI/数据异常，返回 `true`。|
 | TC-004 | 系统崩溃/卡顿 + 操作无法完成 | `StyleBI crashes every time I open a dashboard with more than five charts. On the rare occasions it stays open, the Save button is completely unresponsive and my changes are lost.` | `true` | 验证同时描述系统崩溃与因系统无响应导致操作失败的问题，能被识别为系统性异常，返回 `true`。 |

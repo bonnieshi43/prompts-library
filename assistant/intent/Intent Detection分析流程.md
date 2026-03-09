@@ -3,7 +3,7 @@
 ## 第一阶段：让 Cursor 找到 Intent 相关逻辑进行分析
 
 ```plaintext
-请帮我简答分析当前项目里intent相关的prompt以及核心代码逻辑
+请帮我简单分析当前项目里intent相关的prompt以及核心代码逻辑
 最后请输出为结构化 Markdown，保存到本地，方便我做测试分析。
 ```
 
