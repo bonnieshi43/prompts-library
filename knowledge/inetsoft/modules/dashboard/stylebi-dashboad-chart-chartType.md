@@ -26,3 +26,4 @@ The goal is to organize charts based on shared structural or functional characte
 | geographic | Uses geographic coordinates | Map, Density Map | latitude, longitude |
 | financial | Financial data structure axes | Candle, Stock | time axis, price axis |
 | none | Charts without meaningful axes | Gauge, Speedometer, Thermometer, Bullet, Gantt | none |
+
