@@ -89,10 +89,9 @@ The system must ensure consistent behavior after shape operations.
 Requirements include:
 
 Shapes must persist after system restart
-Shape display must remain correct after color/size changes
+Shape display must apply correct after color/size changes
 Shape display must be applied accurately after size adjustments
-Shape display must remain correct after filter operations
-Shape display must remain correct after drill operations
+Shape display must remain correct after performing operations such as applying filters, drilling, selecting, zooming, excluding or enlarging
 Shape display must remain correct after export operations
 
 ---
