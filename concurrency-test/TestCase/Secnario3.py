@@ -4,13 +4,6 @@ import time
 
 
 class InetsoftWorksheetHotDataTasks(TaskSet):
-    """
-    Scenario 2: 已打开 worksheet 的高频 data 读取压测
-
-    - 低频：POST /api/public/worksheets/open
-    - 高频：GET  /api/public/worksheets/open/{id}/data
-    - 可选：DELETE /api/public/worksheets/open/{id}（避免 open 实例无限累积）
-    """
 
     worksheets = [
         ("1^2^__NULL__^Examples/Call Center Monitoring^host-org", 2),
@@ -52,11 +45,7 @@ class InetsoftWorksheetHotDataTasks(TaskSet):
 
     @task(1)
     def open_ws_low_freq(self):
-        """
-        低频 open：
-        - 如果还没有 ws_identifier，就 open 一次
-        - 如果已经有了，则随机小概率重新 open，制造“打开抖动”
-        """
+        
         if self.ws_identifier is None or random.random() < 0.05:
             ok = self._open_ws()
             if not ok:
@@ -67,9 +56,9 @@ class InetsoftWorksheetHotDataTasks(TaskSet):
     @task(10)
     def get_ws_data_hot(self):
         """
-        高频 data 拉取：
-        - 如果没 open 成功，先 open
-        - 连续多次拉取 data，模拟用户不断刷新/翻页/交互
+        High-frequency data pulling:
+        - If open is not successful, open first
+        - Pull data multiple times consecutively to simulate continuous user
         """
         if self.ws_identifier is None:
             ok = self._open_ws()
@@ -82,21 +71,19 @@ class InetsoftWorksheetHotDataTasks(TaskSet):
         )
 
         if resp.status_code != 200:
-            # 如果 open 实例已过期/被清理，重开一次
             if resp.status_code in (404, 410):
                 self.ws_identifier = None
-            # 其它错误保留现场（便于观察错误比率）
             return
 
         self.data_reads_since_open += 1
 
-        # 每次 data 拉取后做一个很短的随机停顿，更贴近真实用户节奏
+        # After each data fetch, add a very short random pause to better simulate the rhythm of a real user.
         time.sleep(random.uniform(0.1, 0.6))
 
     @task(1)
     def get_ws_open_status_light(self):
         """
-        轻量补充：查询 open worksheet 状态（可选）
+        Lightweight addition: Query open worksheet status (optional)
         """
         if self.ws_identifier is None:
             return
@@ -111,10 +98,7 @@ class InetsoftWorksheetHotDataTasks(TaskSet):
 
     @task(1)
     def close_ws_optional(self):
-        """
-        可选清理：避免 open 实例无限堆积
-        - 只在已经读取了一定次数 data 后，随机小概率触发 close
-        """
+
         if self.ws_identifier is None:
             return
 

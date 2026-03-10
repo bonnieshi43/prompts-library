@@ -4,21 +4,6 @@ import time
 
 
 class InetsoftOpenCloseChurnTasks(TaskSet):
-    """
-    Scenario 4: 会话/实例抖动（Open/Close Churn）压测
-
-    Viewsheet:
-    - POST   /api/public/viewsheets/open
-    - GET    /api/public/viewsheets/open
-    - DELETE /api/public/viewsheets/open/{id}
-
-    Worksheet:
-    - POST   /api/public/worksheets/open
-    - GET    /api/public/worksheets/open
-    - DELETE /api/public/worksheets/open/{id}
-    """
-
-    # 每个用户最多持有多少个 open 实例（避免堆积）
     max_open_viewsheets = 3
     max_open_worksheets = 3
 
@@ -68,7 +53,6 @@ class InetsoftOpenCloseChurnTasks(TaskSet):
                 identifier = None
             if identifier:
                 self.open_vs_ids.append(identifier)
-                # 控制列表长度
                 if len(self.open_vs_ids) > self.max_open_viewsheets:
                     self.open_vs_ids.pop(0)
         return resp.status_code
@@ -81,7 +65,7 @@ class InetsoftOpenCloseChurnTasks(TaskSet):
             f"/api/public/viewsheets/open/{identifier}",
             headers=self.user.headers,
         )
-        # 无论成功与否都从本地移除，避免一直卡住同一个 id
+
         try:
             self.open_vs_ids.remove(identifier)
         except ValueError:
@@ -122,10 +106,6 @@ class InetsoftOpenCloseChurnTasks(TaskSet):
 
     @task(3)
     def open_churn(self):
-        """
-        以“开”为主的 churn：当持有的 open 实例不足上限时补齐；
-        当达到上限时，先关一个再开一个，保持抖动。
-        """
         # Viewsheet churn
         if len(self.open_vs_ids) >= self.max_open_viewsheets:
             self._close_viewsheet()
@@ -145,7 +125,7 @@ class InetsoftOpenCloseChurnTasks(TaskSet):
     @task(2)
     def list_open_refresh(self):
         """
-        模拟用户刷新/恢复 tab：频繁 list open
+        list open
         """
         self.client.get("/api/public/viewsheets/open", headers=self.user.headers)
         time.sleep(random.uniform(0.1, 0.5))
@@ -154,9 +134,6 @@ class InetsoftOpenCloseChurnTasks(TaskSet):
 
     @task(3)
     def close_churn(self):
-        """
-        以“关”为主的 churn：随机关闭若干已打开实例
-        """
         if self.open_vs_ids and random.random() < 0.8:
             self._close_viewsheet()
         time.sleep(random.uniform(0.1, 0.6))

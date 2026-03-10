@@ -28,17 +28,6 @@ def is_export_done(payload: dict) -> bool:
 
 
 class InetsoftViewsheetExportTasks(TaskSet):
-    """
-    Scenario 3: Viewsheet 打开 + 导出（同步/异步）混合压测
-
-    - 低/中频：POST   /api/public/viewsheets/open
-    - 中频：   GET    /api/public/viewsheets/open/{id}/export/{format}
-    - 中频：   GET    /api/public/viewsheets/open/{id}/async-export/{format}
-               + GET  /api/public/viewsheets/exports/{exportId}
-               + GET  /api/public/viewsheets/exports/{exportId}/content
-               + DELETE /api/public/viewsheets/exports/{exportId}  （可选清理导出记录）
-    - 低频：   DELETE /api/public/viewsheets/open/{id}              （可选关闭 viewsheet 实例）
-    """
 
     assets = [
         ("1^128^__NULL__^Examples/Census^host-org", 2),
@@ -84,11 +73,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
     @task(2)
     def open_viewsheet_low_freq(self):
-        """
-        低/中频打开 viewsheet：
-        - 若没有 identifier，则必须打开一次
-        - 若已有，则小概率重新打开，模拟 tab 抖动
-        """
+
         if self.identifier is None or random.random() < 0.05:
             ok = self._open_viewsheet()
             if not ok:
@@ -99,7 +84,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
     @task(4)
     def sync_export(self):
         """
-        同步导出：GET /export/{format}
+        Export：GET /export/{format}
         """
         if self.identifier is None:
             ok = self._open_viewsheet()
@@ -115,7 +100,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
         )
 
         if resp.status_code != 200:
-            # 如果 open 实例已失效，重置，下次再重开
+            # If the open instance has become invalid, reset it and reopen it next time.
             if resp.status_code in (404, 410):
                 self.identifier = None
             return
@@ -125,13 +110,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
     @task(3)
     def async_export_flow(self):
-        """
-        异步导出全链路：
-        1) async-export
-        2) poll exports/{id}
-        3) exports/{id}/content
-        4) 可选 delete exports/{id}
-        """
+
         if self.identifier is None:
             ok = self._open_viewsheet()
             if not ok:
@@ -142,7 +121,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
         export_id = None
 
-        # 1) 创建异步导出任务
+        # 1) Create an asynchronous export task
         with self.client.get(
             f"/api/public/viewsheets/open/{self.identifier}/async-export/{fmt}",
             headers=self.user.headers,
@@ -174,7 +153,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
         time.sleep(random.uniform(0.5, 1.5))
 
-        # 2) 轮询导出状态
+        # 2) Poll the export status
         max_polls = 10
         poll_interval_s = random.uniform(0.8, 1.5)
         done = False
@@ -207,7 +186,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
         if not done:
             return
 
-        # 3) 下载导出内容
+        # 3) Download the exported content
         with self.client.get(
             f"/api/public/viewsheets/exports/{export_id}/content",
             headers=self.user.headers,
@@ -223,7 +202,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
         self.exports_since_open += 1
         time.sleep(random.uniform(0.5, 2))
 
-        # 4) 可选清理 export 记录（避免堆太多）
+        # 4) Clean up export records (to avoid too many accumulations)
         if random.random() < 0.5:
             self.client.delete(
                 f"/api/public/viewsheets/exports/{export_id}",
@@ -232,11 +211,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
     @task(1)
     def list_open_and_bookmark_light(self):
-        """
-        轻量补充：
-        - 列出 open viewsheets
-        - 查询 bookmark（如果有当前 asset）
-        """
+
         self.client.get("/api/public/viewsheets/open", headers=self.user.headers)
 
         if self.asset:
@@ -248,14 +223,7 @@ class InetsoftViewsheetExportTasks(TaskSet):
 
     @task(1)
     def close_viewsheet_optional(self):
-        """
-        可选清理：关闭 open viewsheet 实例，避免长时间压测时实例无限堆积
 
-        触发条件：
-        - 已有有效 identifier
-        - 导出次数达到一定阈值后（例如 >= 10）
-        - 再加一层随机概率，避免所有用户同时 close
-        """
         if self.identifier is None:
             return
 

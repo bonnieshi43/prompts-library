@@ -20,15 +20,6 @@ def encode_string(s: str) -> str:
 
 
 class MultiOrgExportAndScheduleTasks(TaskSet):
-    """
-    多组织导出与调度场景：
-    - 打开 Viewsheet
-    - 导出 Viewsheet（PDF/Excel/CSV）
-    - 检查导出状态
-    - 查看调度任务列表
-    - 创建调度任务
-    - 关闭 Viewsheet
-    """
 
     org_viewsheets = {
         "org-ci1": [
@@ -57,13 +48,11 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
     @task(TASK_WEIGHT_OPEN_VS)
     def open_viewsheet(self):
-        """打开 Viewsheet"""
         org_id = getattr(self.user, "org_id", None)
         viewsheets = self.org_viewsheets.get(org_id)
         if not viewsheets:
             viewsheets = next(iter(self.org_viewsheets.values()))
 
-        # 按权重随机选择 Viewsheet
         vs_info = random.choices(
             viewsheets,
             weights=[v[1] for v in viewsheets],
@@ -97,12 +86,9 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
             if not self.vs_identifier:
                 return
 
-        # 随机选择导出格式
         export_formats = [1, 2, 4]  # 1=PDF, 2=Excel, 4=CSV
         export_format = random.choice(export_formats)
 
-        # 构建导出 URL（基于实际的 API 路径）
-        # /export/viewsheet/{path}?format={format}
         vs_path = self.current_vs_asset.replace("^", "/")
         
         params = {
@@ -119,12 +105,9 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
             name="/export/viewsheet/[path]",
         )
 
-        # 导出通常返回文件流或任务ID
         if resp.status_code == 200:
-            # 成功导出
             pass
         elif resp.status_code == 202:
-            # 异步导出，返回任务ID
             try:
                 result = resp.json()
                 job_id = result.get("jobId")
@@ -142,11 +125,9 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
     @task(TASK_WEIGHT_CHECK_EXPORT)
     def check_export_status(self):
-        """检查导出状态"""
         if not self.vs_identifier:
             return
 
-        # 使用 /export/check/{runtimeId} 检查导出状态
         encoded_id = encode_string(self.vs_identifier)
         
         resp = self.client.get(
@@ -163,7 +144,6 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
     @task(TASK_WEIGHT_LIST_SCHEDULE)
     def list_schedule_tasks(self):
-        """查看调度任务列表"""
         org_id = getattr(self.user, "org_id", None)
 
         params = {
@@ -182,7 +162,6 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
             try:
                 result = resp.json()
                 tasks = result.get("tasks", [])
-                # 可以记录任务信息供后续操作
             except ValueError:
                 pass
 
@@ -190,8 +169,7 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
     @task(TASK_WEIGHT_CREATE_SCHEDULE)
     def create_schedule_task(self):
-        """创建调度任务（低频操作）"""
-        if random.random() > 0.3:  # 只有30%概率创建
+        if random.random() > 0.3:
             return
 
         org_id = getattr(self.user, "org_id", None)
@@ -202,7 +180,6 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
         vs_info = random.choice(viewsheets)
         vs_asset = vs_info[0]
 
-        # 构建调度任务数据（基于实际的 API 结构）
         schedule_data = {
             "name": f"Auto_Schedule_{int(time.time())}_{random.randint(1000, 9999)}",
             "taskType": "viewsheet",
@@ -212,7 +189,6 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
             "enabled": True,
         }
 
-        # 注意：实际的创建调度任务 API 可能在 /api/portal/schedule/task
         resp = self.client.post(
             "/api/portal/schedule/task",
             json=schedule_data,
@@ -224,7 +200,6 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
     @task(TASK_WEIGHT_CLOSE_VS)
     def close_viewsheet(self):
-        """关闭 Viewsheet（低频操作）"""
         if random.random() > 0.2:
             return
 
@@ -243,7 +218,7 @@ class MultiOrgExportAndScheduleTasks(TaskSet):
 
 class MultiOrgExportUser(HttpUser):
     """
-    Multi-org 导出与调度用户
+    Multi-org export and user scheduling
     """
 
     tasks = [MultiOrgExportAndScheduleTasks]

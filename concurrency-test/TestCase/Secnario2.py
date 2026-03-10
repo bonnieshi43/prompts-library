@@ -11,7 +11,6 @@ def encodeString(strs):
 
 
 class InetsoftVSAndWSTasks(TaskSet):
-    # viewsheet 与 worksheet 的配对列表：(viewsheet_asset, worksheet_asset, 权重)
     vs_ws_pairs = [
         ("1^128^__NULL__^Examples/Census^host-org",
          "1^2^__NULL__^Examples/Census Data", 1),
@@ -40,9 +39,8 @@ class InetsoftVSAndWSTasks(TaskSet):
     @task(3)
     def open_viewsheet_and_worksheet(self):
         """
-        打开一个 viewsheet，然后打开对应 worksheet
+        Open a viewsheet, then open the corresponding worksheet.
         """
-        # 按权重随机选择一对 VS + WS
         pair = random.choices(
             self.vs_ws_pairs,
             weights=[p[2] for p in self.vs_ws_pairs],
@@ -52,7 +50,7 @@ class InetsoftVSAndWSTasks(TaskSet):
         self.current_vs_asset = pair[0]
         self.current_ws_asset = pair[1]
 
-        # 1. 打开 Viewsheet
+        # 1. Open Viewsheet
         vs_body = {"asset": self.current_vs_asset}
         vs_resp = self.client.post(
             "/api/public/viewsheets/open",
@@ -73,7 +71,7 @@ class InetsoftVSAndWSTasks(TaskSet):
 
         time.sleep(random.uniform(0.5, 2))
 
-        # 2. 打开 Worksheet
+        # 2. Open Worksheet
         ws_body = {"asset": self.current_ws_asset}
         ws_resp = self.client.post(
             "/api/public/worksheets/open",
@@ -97,10 +95,10 @@ class InetsoftVSAndWSTasks(TaskSet):
     @task(2)
     def get_worksheet_data(self):
         """
-        已经打开 worksheet 后，不断拉取数据
+        After the worksheet is opened, continuously pull data.
         """
         if not self.ws_identifier:
-            # 还没成功打开过 worksheet，就先不拉数据
+            # If the worksheet hasn't been successfully opened yet, do not pull data for now.
             print("[WS] ws_identifier is None. Skip get_worksheet_data.")
             return
 
@@ -118,7 +116,7 @@ class InetsoftVSAndWSTasks(TaskSet):
     @task(1)
     def get_viewsheet_bookmark(self):
         """
-        可选场景：基于当前 viewsheet asset 去拿书签
+        Optional scenario: Get bookmarks based on the current viewsheet asset
         """
         if not self.current_vs_asset:
             print("[VS] current_vs_asset is None. Skip get_viewsheet_bookmark.")
@@ -141,10 +139,7 @@ class ProductAPIUser(HttpUser):
     wait_time = between(1, 5)
 
     def on_start(self):
-        """
-        每个虚拟用户启动时先登录，拿到 token
-        """
-        # 可以根据需要切换登录用户
+
         resp = self.client.post(
             "/api/public/login",
             json={"username": "admin", "orgID": "host-org", "password": "admin"}

@@ -99,7 +99,7 @@ class MultiOrgVSAndWSTasks(TaskSet):
         if not pairs:
             pairs = next(iter(self.org_assets.values()))
 
-        # 按权重随机选择一对 VS + WS
+        # Randomly select a pair of VS + WS by weight
         pair = random.choices(
             pairs,
             weights=[p[2] for p in pairs],
@@ -109,7 +109,7 @@ class MultiOrgVSAndWSTasks(TaskSet):
         self.current_vs_asset = pair[0]
         self.current_ws_asset = pair[1]
 
-        # 1. 打开 Viewsheet（带超时，避免长时间占锁）
+        # 1. Open Viewsheet (with timeout to avoid long locking)
         vs_body = {"asset": self.current_vs_asset}
         vs_resp = self.client.post(
             "/api/public/viewsheets/open",
@@ -125,12 +125,11 @@ class MultiOrgVSAndWSTasks(TaskSet):
             except ValueError:
                 self.vs_identifier = None
         else:
-            # 打开失败则直接返回，交给下次循环重试
             return
 
         time.sleep(random.uniform(0.3, 1.0))
 
-        # 2. 打开 Worksheet（带超时）
+        # 2. Open Worksheet (with timeout)）
         ws_body = {"asset": self.current_ws_asset}
         ws_resp = self.client.post(
             "/api/public/worksheets/open",
@@ -146,18 +145,14 @@ class MultiOrgVSAndWSTasks(TaskSet):
             except ValueError:
                 self.ws_identifier = None
         else:
-            # worksheet 打不开也不影响其它用户/org，直接返回
             return
 
         time.sleep(random.uniform(0.5, 1.5))
 
     @task(TASK_WEIGHT_GET_DATA)
     def get_worksheet_data(self):
-        """
-        高频：在已打开的 worksheet 上拉取数据
-        """
+
         if not self.ws_identifier:
-            # 如果还没打开成功，就先尝试走一遍 open 链路
             self.open_viewsheet_and_worksheet()
             if not self.ws_identifier:
                 return
@@ -168,7 +163,6 @@ class MultiOrgVSAndWSTasks(TaskSet):
             timeout=REQUEST_TIMEOUT,
         )
 
-        # 如果实例被清理/过期，则重置，下次会重新打开
         if resp.status_code in (404, 410):
             self.ws_identifier = None
             self.vs_identifier = None
@@ -177,9 +171,7 @@ class MultiOrgVSAndWSTasks(TaskSet):
 
     @task(TASK_WEIGHT_BOOKMARK)
     def get_viewsheet_bookmark(self):
-        """
-        轻量：当前 viewsheet 对应的 bookmark 读取
-        """
+
         if not self.current_vs_asset:
             return
 
@@ -190,9 +182,7 @@ class MultiOrgVSAndWSTasks(TaskSet):
             timeout=REQUEST_TIMEOUT,
         )
 
-        # 如果 bookmark 失败一般不影响主链路，这里只做轻量访问
         if resp.status_code in (404, 410):
-            # 资产不存在或 bookmark 关闭，可以忽略
             pass
 
         time.sleep(random.uniform(0.2, 0.7))
@@ -203,7 +193,6 @@ class MultiOrgVSAndWSTasks(TaskSet):
         if random.random() > 0.2:
             return
 
-        # 先关 worksheet，间隔后再关 viewsheet（顺序固定，避免多用户锁顺序不一致导致死锁）
         if self.ws_identifier:
             self.client.delete(
                 f"/api/public/worksheets/open/{self.ws_identifier}",
@@ -226,11 +215,6 @@ class MultiOrgVSAndWSTasks(TaskSet):
 
 
 class MultiOrgUser(HttpUser):
-    """
-    Multi-org 用户：
-    - 每个 Locust 虚拟用户在 on_start 时随机选择一个 org（organization0 / organization1）
-    - 用该 org 登录，后续请求都携带对应 token
-    """
 
     tasks = [MultiOrgVSAndWSTasks]
     wait_time = between(1, 5)
@@ -241,7 +225,6 @@ class MultiOrgUser(HttpUser):
     ]
 
     def on_start(self):
-        # 错峰启动，避免所有用户同一时刻打满 open 导致服务端锁争用/死锁
         time.sleep(random.uniform(0, USER_STAGGER_MAX))
 
         org_id, username, password, _ = random.choices(
@@ -259,7 +242,6 @@ class MultiOrgUser(HttpUser):
             json={"username": self.username, "orgID": self.org_id, "password": self.password},
         )
 
-        # 调试输出，便于确认登录是否成功、401 是否来自登录失败
         print(f"[LOGIN] org={self.org_id}, user={self.username}, status={resp.status_code}, body={resp.text}")
 
         if resp.status_code == 200:

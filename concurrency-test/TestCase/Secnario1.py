@@ -17,9 +17,8 @@ class InetsoftDashboardTasks(TaskSet):
         ("1^128^__NULL__^Examples/Hurricane^host-org", 1),
         ("1^128^__NULL__^Examples/Return Analysis^host-org", 1),
         ("1^128^__NULL__^Examples/Sales Summary^host-org", 1)
-        # 你可以添加更多的 asset 值及其权重
     ]
-    identifier = None  # 初始化 identifier
+    identifier = None
 
     @task(3)
     def openDashboards(self):
@@ -29,7 +28,7 @@ class InetsoftDashboardTasks(TaskSet):
         # print(self.user.headers)
         response = self.client.post("/api/public/viewsheets/open", json=vs, headers=self.user.headers)
 
-        time.sleep(random.uniform(1, 5))  # 随机等待 1 到 5 秒钟
+        time.sleep(random.uniform(1, 5))
 
         print(f"Opened viewsheet with asset: {self.asset}, status code: {response.status_code}")
 
@@ -78,9 +77,8 @@ class InetsoftWSTasks(TaskSet):
         ("1^2^__NULL__^Examples/Hurricane^host-org", 1),
         ("1^2^__NULL__^Examples/Order Details^host-org", 3),
         ("1^2^__NULL__^Examples/Sales Revenue^host-org", 1)
-        # 你可以添加更多的 asset 值及其权重
     ]
-    wsIdentifier = None  # 初始化 wsIdentifier
+    wsIdentifier = None
 
     @task(2)
     def openWS(self):
@@ -90,7 +88,7 @@ class InetsoftWSTasks(TaskSet):
 
         response = self.client.post("/api/public/worksheets/open", json=self.ws, headers=self.user.headers)
 
-        time.sleep(random.uniform(1, 5))  # 随机等待 1 到 5 秒钟
+        time.sleep(random.uniform(1, 5))
 
         print(f"Opened worksheet with asset: {self.asset}, status code: {response.status_code}")
 
@@ -116,13 +114,9 @@ class InetsoftWSTasks(TaskSet):
 class ProductAPIUser(HttpUser):
     tasks = [(InetsoftDashboardTasks, 3), (InetsoftWSTasks, 1)]
     #tasks = [InetsoftWSTasks]
-    wait_time = between(1, 5)  # 用户之间的等待时间
+    wait_time = between(1, 5)
 
     def on_start(self):
-        """
-        on_start 方法在每个用户开始执行任务之前调用一次。
-        这里我们用它来生成 token
-        """
 
         response = self.client.post("/api/public/login", json={"username": "admin", "orgID": "host-org", "password": "admin"})
         #response = self.client.post("/api/public/login", json={"username": "ci1", "orgID": "host-org", "password": "success123"})
