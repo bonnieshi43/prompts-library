@@ -9,7 +9,7 @@
 
 我来分析这个 StyleBI Feature #70565 的测试场景。
 
-首先，让我**验证输入信息的完整性**：  > **分析**：ok
+首先，让我**验证输入信息的完整性**：  🔴 **测试-分析**：ok
 
 ✅ 知识库文档：`dashboard-chartshape-knowledge.md` - 完整  
 ✅ Feature 需求：PDF文件（InetSoft Issue Tracking）- 完整  
@@ -22,7 +22,7 @@
 
 # 分析报告：Feature #70565 - Chart Shape SVG Support
 
-## 第一部分：Requirement Summary（需求概要）  > **分析**：ok，简洁也覆盖全
+## 第一部分：Requirement Summary（需求概要）  🔴 **测试-分析**：ok，简洁也覆盖全
 
 **核心目标**：
 - 扩展 Chart Shape 功能，在现有的 JPG / PNG / GIF 格式基础上，**新增 SVG 文件格式支持**
@@ -37,7 +37,7 @@
 
 ---
 
-## 第二部分：Implementation Change（变更分析）  >**分析**：ok，简洁也覆盖全
+## 第二部分：Implementation Change（变更分析）  🔴 **测试-分析**：ok，简洁也覆盖全
 
 基于 PR #2777 的描述和 PDF 信息：
 
@@ -62,7 +62,7 @@
 
 ---
 
-## 第三部分：Risk Identification（风险识别）  >**分析**：ok，简洁也覆盖我们考虑有限的，但需要验证我们是否支持
+## 第三部分：Risk Identification（风险识别）  🔴 **测试-分析**：ok，简洁也覆盖我们考虑有限的。
 
 | # | 风险点 | 风险类型 | 说明 |
 |---|---|---|---|
@@ -78,7 +78,7 @@
 
 ---
 
-## 第四部分：Test Design（测试策略设计） >**分析**：ok，易读也基本覆盖
+## 第四部分：Test Design（测试策略设计） 🔴 **测试-分析**：ok，易读也基本覆盖
 
 **核心验证点**：
 1. SVG 文件能否正确上传、存储、加载、渲染到图表中
@@ -100,18 +100,19 @@
 - ✅ Export Module（PDF/Image/Excel导出）
 - ✅ Content Repository（文件存储）
 - ✅ Admin / Settings（Shape 管理）
-- ✅ Security / Auth（权限和安全）
+- ✅ Security / Auth（权限和安全） 🔴 **测试-分析**：可忽略
 
 **专项检查**：
-- **脚本兼容性**：若 UI 中有 Script 逻辑依赖 Shape 类型判断（如 `if shape.format == 'PNG'`），需验证是否需要扩展支持 'SVG'
-- **向后兼容**：已发布报表中的 JPG/PNG Shape 在新版本中是否仍正常显示
-- **文档一致性**：Shape 支持格式的官方文档是否已更新
+- **脚本兼容性**：若 UI 中有 Script 逻辑依赖 Shape 类型判断（如 `if shape.format == 'PNG'`），需验证是否需要扩展支持 'SVG'  🔴 **测试-分析**：本身不支持，所以可忽略
+- **向后兼容**：已发布报表中的 JPG/PNG Shape 在新版本中是否仍正常显示 🔴 **测试-分析**：可忽略
+- **文档一致性**：Shape 支持格式的官方文档是否已更新  
+  - 🔴 **Test Result**：报Documentation #74082
 
 ---
 
 ## 第五部分：Key Test Scenarios（核心测试场景）
 
-### **Scenario 1：SVG 文件基础上传和渲染**   >**分析**：ok，比较详细，步骤也比较详细
+### **Scenario 1：SVG 文件基础上传和渲染**   🔴 **测试-分析**：ok，比较详细，步骤也比较详细
 
 **Scenario Objective**：
 验证标准 SVG 文件能否完整地上传到系统、存储并在图表中正确渲染。
@@ -150,11 +151,12 @@
 - ✅ 存储持久化
 - ✅ 基础渲染
 
-📅 报了Bug #74031：upload some svg image, show empty
+🔴 **Test Result**：fail
+- upload some svg image, show empty（Bug #74031）
 
 ---
 
-### **Scenario 2：SVG 安全性 - 恶意脚本检测**  >**分析**：我们之前测试方式很容易忽略的，需执行验证
+### **Scenario 2：SVG 安全性 - 恶意脚本检测**  🔴 **测试-分析**：我们之前测试方式很容易忽略的，需执行验证
 
 **Scenario Objective**：
 验证系统能否检测和防止含有 JavaScript 脚本的恶意 SVG 文件上传，防止 XSS 攻击。
@@ -190,9 +192,12 @@
 - ✅ SVG 恶意脚本注入风险
 - ✅ 系统安全防护
 
+🔴 **Test Result**：fail
+- The SVG file contains malicious code that was able to be uploaded successfully（Bug #74068）
+
 ---
 
-### **Scenario 3：SVG 与位图混用 - 渲染一致性**    >**分析**：覆盖到chart结构还不错
+### **Scenario 3：SVG 与位图混用 - 渲染一致性**    >🔴 **测试-分析**：覆盖到chart结构还不错
 
 **Scenario Objective**：
 验证同一图表中同时使用 SVG 和 PNG/JPG Shape 时，渲染结果的一致性和稳定性。
@@ -226,9 +231,12 @@
 - ✅ 混合格式渲染一致性
 - ✅ 渲染性能
 
+🔴 **Test Result**：fail
+- add and apply shape， background server pop up error（Bug #74078）
+
 ---
 
-### **Scenario 4：SVG 大小极限 - 文件上传限制**   >**分析**：ok
+### **Scenario 4：SVG 大小极限 - 文件上传限制**   🔴 **测试-分析**：ok
 
 **Scenario Objective**：
 验证系统对 SVG 文件大小的限制，防止超大文件上传导致系统资源耗尽。
@@ -260,9 +268,11 @@
 - ✅ SVG 文件大小无限制风险
 - ✅ 系统性能和稳定性
 
+🔴 **Test Result**：未验证
+- 需要等其他bug改了，验证大的svg情况
 ---
 
-### **Scenario 5：SVG 在图表导出中的表现**   >**分析**：覆盖了导出
+### **Scenario 5：SVG 在图表导出中的表现**   🔴 **测试-分析**：覆盖了导出
 
 **Scenario Objective**：
 验证包含 SVG Shape 的图表在导出为不同格式（PDF、PNG、Excel）时，SVG 是否被正确处理。
@@ -294,46 +304,51 @@
 - ✅ SVG 在导出场景的支持（跨功能模块）
 - ✅ 数据一致性
 
+🔴 **Test Result**：pass
+
 ---
 
-### **Scenario 6：图表过滤/钻取后 SVG 动态刷新**   >**分析**：覆盖了关联模块
+### **Scenario 6：图表过滤/钻取后 SVG 动态刷新**   🔴 **测试-分析**：覆盖了关联模块，拿到了知识库（根据描述优化了知识库）
 
 **Scenario Objective**：
-验证当图表数据因用户过滤或钻取操作而变化时，SVG Shape 是否正确刷新和更新。
+验证当图表数据因用户过滤/钻取/brush/zoom/exclue/show enlarge等操作而变化时，SVG Shape 是否正确刷新和更新。
 
 **Risk Level**：
 🟠 **Medium** - 常见用户交互，破缺会导致数据和视觉不同步
 
 **Scenario Description**：
-在 Dashboard 中对使用 SVG Shape 的图表应用过滤器或执行钻取操作，验证数据和 Shape 的同步更新。
+在 Dashboard 中对使用 SVG Shape 的图表应用钻取/钻取/brush/zoom/exclue/show enlarge等操作，验证数据和 Shape 的同步更新。
 
 **Pre-condition**：
 - Dashboard 中存在使用 SVG Shape 的 Point Chart
-- Chart 配置了过滤器或支持钻取
+- Chart 上操作钻取/钻取/brush/zoom/exclue/show enlarge等操作
 - 图表有多个数据维度
 
 **Key Steps**：
 1. 初始化 Dashboard，查看图表中的 SVG Shape
-2. 应用过滤器（如选择特定的地区或时间范围）
+2. 应用操作钻取/钻取/brush/zoom/exclue/show enlarge等操作
 3. 验证图表数据和 SVG Shape 是否同步刷新
 4. 验证刷新过程中是否出现闪烁或加载延迟
-5. 执行钻取操作（如从年份钻取到月份）
-6. 验证钻取后的新数据中的 SVG Shape 是否正确显示
+5. 验证钻取后的新数据中的 SVG Shape 是否正确显示
 
 **Expected Result**：
-- ✅ 应用过滤器后，图表数据和 SVG Shape 同时刷新，保持同步
+- ✅ 应用过一些操作后，图表数据和 SVG Shape 同时刷新，保持同步
 - ✅ 无异步加载导致的数据-UI 不一致
 - ✅ 刷新动画流畅，无卡顿
-- ✅ 钻取操作正确，SVG Shape 适应新数据
+- ✅ 所有操作正确，SVG Shape 适应新数据
 
 **Risk Covered**：
 - ✅ SVG 动态刷新的功能正确性
 - ✅ 数据一致性
 - ✅ Dashboard 与 Chart 的交互一致性
 
+🔴 **Test Result**: fail（优化了知识库）
+- do brush actions, svg shape color is not rightly（Bug #74065）
+- do exclude/drill/exclude/datatipview actions, svg shape can't be exclude （Bug #74066）
+
 ---
 
-### **Scenario 7：复杂 SVG 渲染性能**  >**分析**：覆盖了性能
+### **Scenario 7：复杂 SVG 渲染性能**  🔴 **测试-分析**：覆盖了性能
 
 **Scenario Objective**：
 验证包含复杂路径、滤镜、阴影等高级特性的 SVG 在图表中批量渲染时的性能表现。
@@ -365,9 +380,12 @@
 - ✅ SVG 复杂渲染性能风险
 - ✅ 系统性能和可用性
 
+🔴 **Test Result**：未验证
+- 需要等其他bug改了，验证性能
+
 ---
 
-### **Scenario 8：浏览器兼容性 - SVG 渲染差异**   >**分析**：覆盖了兼容和渲染
+### **Scenario 8：浏览器兼容性 - SVG 渲染差异**    🔴 **测试-分析**：覆盖了兼容和渲染
 
 **Scenario Objective**：
 验证 SVG Shape 在不同浏览器中的渲染一致性，特别是高级 SVG 特性（如滤镜、渐变）的兼容性。
@@ -397,11 +415,13 @@
 - ✅ 浏览器兼容性差异风险
 - ✅ 跨浏览器一致性
 
-📅 报了Bug #74034：default size of svg can't apply
+🔴 **Test Result**：pass
+- default size of svg can't apply（不支持）
+- 主流浏览器pass
 
 ---
 
-### **Scenario 9：系统升级后的向后兼容性**  >**分析**：覆盖了BC
+### **Scenario 9：系统升级后的向后兼容性**  🔴 **测试-分析**：覆盖了BC
 
 **Scenario Objective**：
 验证低版本 StyleBI 中创建的报表在升级到新版本后，如果其中包含 JPG/PNG Shape，是否仍正确加载和显示。
@@ -432,9 +452,11 @@
 - ✅ 从低版本升级时的兼容性风险
 - ✅ 数据迁移一致性
 
+🔴 **Test Result**： ignore
+
 ---
 
-### **Scenario 10：SVG Shape 在全局 vs 组织级别的隔离**  >**分析**：覆盖了知识库的组织和global
+### **Scenario 10：SVG Shape 在全局 vs 组织级别的隔离**  🔴 **测试-分析**：获取了知识库，很好的覆盖了知识库的组织和global
 
 **Scenario Objective**：
 验证在多组织或多用户场景下，上传到全局和组织级别的 SVG Shape 是否被正确隔离和访问控制。
@@ -466,9 +488,10 @@
 - ✅ 多租户隔离风险
 - ✅ 权限和安全管理
 
+🔴 **Test Result**： pass
 ---
 
-### **Scenario 11：SVG 文件格式验证**  >**分析**：覆盖了异常和边界测试
+### **Scenario 11：SVG 文件格式验证**  🔴 **测试-分析**：覆盖了异常和边界测试
 
 **Scenario Objective**：
 验证系统能否正确识别和验证 SVG 文件格式，拒绝伪造的 SVG 文件（如重命名后的 PNG）。
@@ -497,17 +520,8 @@
 **Risk Covered**：
 - ✅ 文件格式验证的严密性
 
-📅 报了Bug #74029：when upload svg(empty/invalid), show broken image and pop up error on background server
-
----
-
-## 总结与测试优先级
-
-| 优先级 | Scenario | 原因 |
-|---|---|---|
-| **P0** | Scenario 1, 2, 9 | 核心功能、安全、兼容性 |
-| **P1** | Scenario 3, 5, 6, 10 | 常见功能、跨模块、多租户 |
-| **P2** | Scenario 4, 7, 8, 11 | 性能、浏览器兼容、边界情况 |
+🔴 **Test Result**： fail
+- upload svg(empty/invalid), show broken image and pop up error on background server（Bug #74029）
 
 ---
 
