@@ -204,6 +204,15 @@ type: feature-analysis
 
 - 新 UI 是否有多语言资源
 
+**环境设置（Properties）**
+
+若改动涉及环境配置（如需修改 `default.properties`），必须验证：
+
+- **属性作用域**：该属性是 global 属性还是 org 属性，验证两种作用域下的行为是否符合预期
+- **All Properties 页面**：
+  - 新增属性在 All Properties 页面中是否支持 auto-complete
+  - 修改属性后验证无需重启服务即可生效
+
 #### 回归测试（Regression）
 
 仅在可能影响已有模块时输出：
