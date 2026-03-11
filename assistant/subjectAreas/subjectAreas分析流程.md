@@ -49,7 +49,7 @@
 6. 所有测试用例放在一个 Markdown 表格中输出，输出保存到md文件
 
 表格格式：
-| CaseID | 场景/类别 | User Query | 预期 module | 预期 subModule | explicitly_mentioned | 设计意图
+| CaseID | 场景说明 | contextType | User Query | 预期 Module | 预期 SubModule（Enhanced 最终结果） | explicitly_mentioned | 设计意图 
 ```
 
 ## 第三阶段：让 claude review case

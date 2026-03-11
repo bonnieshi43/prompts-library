@@ -390,7 +390,7 @@ contextType: scheduleTask（"schedule task"）
 
 | CaseID | 场景说明 | contextType | User Query | 预期 Module | 预期 SubModule（Enhanced 最终结果） | explicitly_mentioned | 验证目的 |
 |------|------|------|------|------|------|------|------|
-| OPT-01 | module 语义推断基础场景 | — | How to visualize data in a report? | Dashboard | chart | false | 验证在无 context 情况下的基础语义识别 |
+| OPT-01 | module 语义推断基础场景 | — | How to visualize data in a dashboard view? | Dashboard | chart | false | 验证在无 context 情况下的基础语义识别 |
 | OPT-02 | module 与 subModule 同时显式提到 | dashboard | How to create a chart in the dashboard? | Dashboard | chart | true | 验证显式 module + subModule |
 | OPT-03 | module 显式但 subModule 需要语义推断 | dashboard | How to change the color of this dashboard component? | Dashboard | chart | false | 验证组件语义推断 |
 | OPT-04 | chart 独占概念识别 | chart | How to change the axis color? | Dashboard | chart | true | 验证 axis 等 chart 独占关键词 |
@@ -399,7 +399,7 @@ contextType: scheduleTask（"schedule task"）
 | OPT-07 | freehand table 独占功能 | freehand | How to write a cell formula for custom calculation? | Dashboard | freehand table | true | 验证 freehand table 专属能力 |
 | OPT-08 | others 组件识别 | dashboard | How to add a slider to filter data? | Dashboard | others | true | 验证非核心组件分类 |
 | OPT-09 | table 双 module 规则 | — | How to create a table to display records? | Dashboard / Data Worksheet | table | true | 验证 table 同属两个 module |
-| OPT-10 | trend 强关键词触发 | — | How to create a YoY comparison report? | Dashboard | trend&comparison | true | 验证 YoY 触发趋势分析 |
+| OPT-10 | trend 强关键词触发 | — | How to create a YoY comparison chart in a dashboard? | Dashboard | trend&comparison | true | 验证 YoY 触发趋势分析 |
 | OPT-11 | trend 负例验证 | — | How to display monthly sales as a time series? | Dashboard | chart | false | 避免误判为 trend |
 | OPT-12 | context 过滤 + fallback | freehand | How to configure this component? | Dashboard | freehand table | false | 验证 context filtering |
 | OPT-13 | Enterprise Manager 覆盖规则 | chart | How to create a user role for the chart module? | Enterprise Manager | — | true | 验证 EM override |
