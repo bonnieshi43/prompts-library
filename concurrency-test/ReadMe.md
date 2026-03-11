@@ -8,9 +8,11 @@
    pip install locust
    ```
 
-## 启用 Security
-- 新建组织 `org-ci1/ci1`，并赋予组织管理员角色。
-- 新建组织 `org-ci2/ci2`，并同样赋予组织管理员角色。
+## 启用 Security和准备环境
+- 新建组织 `org-ci1/ci1`，并赋予org admin role
+- 新建组织 `org-ci2/ci2`，并同样赋予org admin role
+- 新建用户'ci1',并赋予org admin role
+- 导入'Import ExamplesNoDB.zip '到host org
 
 ---
 
