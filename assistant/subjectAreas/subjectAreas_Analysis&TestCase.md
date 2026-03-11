@@ -539,49 +539,36 @@ Composer 操作在 subjectAreas 体系中 **不是独立 Module**，映射到 `D
 
 ---
 
-# 补充测试用例（OPT-15 ~ OPT-28）
+# 补充测试用例（OPT-15 ~ OPT-20）
 
-> 补充覆盖原测试集未触及的边界场景，包括 Portal / Schedule / Composer 模块以及 Why / What 问题类型。
+> 每条规则保留一个最具代表性的 case，共 **6 条**，补充覆盖原测试集未触及的边界场景。
+>
+> **删减说明**：数据类型变更双路径（与 Join 双路径共用同一代码路径，见规则 4.5，合并）、Composer 布局/dashboardPortal（Composer 不是独立 Module，P2）、"Why" 权限问题（EM 强制覆盖逻辑已由 OPT-13 覆盖，"Why" 问题类型已由 OPT-18 覆盖，两个维度均已有代表性用例）、Named Grouping（与 data block union 同属 Data Worksheet 显式规则，逻辑相同）、Portal subModule=undefined / scheduleTask 空结果兜底（P2 边界，已在上方分析章节记录）均已删除。
 
 | CaseID | 场景说明 | contextType | User Query | 预期 Module | 预期 SubModule（Enhanced 最终结果） | explicitly_mentioned | 验证目的 |
 |--------|---------|-------------|------------|------------|----------------------------------|----------------------|---------|
-| OPT-15 | Portal 显式提及 | portal | How do I access the data model in the Portal? | Portal | — | true | 验证 Portal 模块显式识别；singleModule submodule 代码层为 undefined |
-| OPT-16 | Join 双路径规则 | — | How do I join two worksheets together using a common field? | Data Worksheet / Portal | — / — | true / true | 验证 Join 触发双路径：同时返回 Data Worksheet + Portal，两者 explicit 均为 true |
-| OPT-17 | 数据类型变更双路径 | worksheet | How do I change the data type of a column from string to integer? | Data Worksheet / Portal | — / — | true / true | 验证数据类型变更触发双路径：同时返回 Data Worksheet + Portal |
-| OPT-18 | scheduleTask 上下文 + schedule 显式问题 | scheduleTask | How do I configure an email notification for a scheduled task? | Portal | — | true | 验证 scheduleTask 上下文下 Portal/EM scheduled task 的识别；代码层无过滤分支，走优先级排序 |
-| OPT-19 | scheduleTask 上下文 + 通用问题（Dashboard 压过风险） | scheduleTask | How do I configure the output format? | Dashboard | — | false | **风险验证**：schedule 上下文下通用问题，LLM 同时返回 Dashboard，Dashboard 优先级（score=0）可能压过 Portal（score=2），导致 scheduled task 被过滤 |
-| OPT-20 | dashboardPortal 上下文（Composer → Portal 查看） | dashboardPortal | How do I view a report that has been pinned to the portal? | Dashboard | — | false | 验证 dashboardPortal contextType 无代码层过滤，走优先级排序；Dashboard 优先级最高，Portal 特有内容可能被忽略 |
-| OPT-21 | Composer 通用布局问题（无组件名） | dashboard | How do I arrange and resize the components in my composer layout? | Dashboard | — | false | 验证 Composer 布局操作（无具体组件名）映射到 Dashboard module；不应误触发 chart/crosstab 等子模块 |
-| OPT-22 | "Why" 问题 — 图表诊断 | chart | Why is my bar chart not displaying the correct total values? | Dashboard | chart | true | 验证 "Why" 诊断类问题仍能正确识别模块；"bar chart" 为显式提及，axis/chart 独占概念 |
-| OPT-23 | "What" 问题 — 概念理解（双组件） | — | What is the difference between a crosstab and a freehand table in a dashboard? | Dashboard | crosstab / freehand table | true | 验证 "What" 概念类问题对多子模块的正确识别；两者均为 Dashboard 独占概念 |
-| OPT-24 | "Why" 问题 — 权限诊断，EM 强制覆盖 | — | Why can't my team members access the dashboard I just published? | Enterprise Manager | — | true | 验证权限相关 "Why" 诊断问题触发 EM 强制覆盖，即使问题中包含 "dashboard" 组件名 |
-| OPT-25 | Data Worksheet — data block 显式（union） | worksheet | How do I create a union between two data blocks in my worksheet? | Data Worksheet | — | true | 验证 Concatenation 规则：union 操作触发 Data Worksheet，explicit=true；singleModule submodule 代码层为 undefined |
-| OPT-26 | Data Worksheet — Named Grouping 显式 | worksheet | How do I create a named group to categorize product values in my worksheet? | Data Worksheet | — | true | 验证 Named Grouping 触发 Data Worksheet 识别；Named Grouping 为 Data Worksheet 专属概念 |
-| OPT-27 | Portal subModule 代码层强制 undefined | — | How do I update a VPM condition in the data model? | Portal | undefined（代码层强制） | true | 验证 singleModules 规则：LLM 返回 `{Portal, subModule: "data model"}` 后代码层将 subModule 强制清为 undefined |
-| OPT-28 | scheduleTask 空结果兜底 — 非标准 module 名风险 | scheduleTask | What time is it? | scheduleTask（非标准 module 名） | — | false | **风险验证**：scheduleTask 上下文下 LLM 对完全无关问题返回空 subjectAreas 时，兜底 module 被赋值为 `"schedule task"`（非标准 Module 名），而非 Dashboard / Portal / Enterprise Manager，预期下游路由异常 |
+| OPT-15 | Portal — Join 双路径规则（P0） | — | How do I join two worksheets together using a common field? | Data Worksheet / Portal | — / — | true / true | 验证 Join 触发双路径：必须同时返回 Data Worksheet + Portal，两者 explicit 均为 true；Portal 模块此前完全无覆盖 |
+| OPT-16 | scheduleTask 上下文 + schedule 显式问题 | scheduleTask | How do I configure an email notification for a scheduled task? | Portal | — | true | 验证 scheduleTask 上下文下显式 schedule 问题能正确识别为 Portal；代码层无专属过滤分支，走优先级排序 |
+| OPT-17 | scheduleTask 上下文 + 通用问题（Dashboard 优先级压过风险） | scheduleTask | How do I configure the output format? | Dashboard | — | false | **风险验证**：schedule 上下文下通用问题，Dashboard 优先级（score=0）可能压过 Portal（score=2），导致 scheduled task 被过滤；此为已知代码层风险 |
+| OPT-18 | "Why" 问题 — 图表诊断 | chart | Why is my bar chart not displaying the correct total values? | Dashboard | chart | true | 验证 "Why" 诊断类问题（所有原有 case 均为 "How"）仍能正确识别模块；"bar chart" 为显式提及 |
+| OPT-19 | "What" 问题 — 概念理解（双组件） | — | What is the difference between a crosstab and a freehand table in a dashboard? | Dashboard | crosstab / freehand table | true | 验证 "What" 概念类问题对多子模块的正确识别；两者均为 Dashboard 独占概念，explicit=true |
+| OPT-20 | Data Worksheet — data block 显式（union） | worksheet | How do I create a union between two data blocks in my worksheet? | Data Worksheet | — | true | 验证 Concatenation 规则：union 操作触发 Data Worksheet，explicit=true；singleModule 代码层 submodule 为 undefined |
 
 ---
 
 ## 补充用例覆盖说明
 
-### 新增 Module 覆盖
-- **Portal**：OPT-15、OPT-16、OPT-17、OPT-27
-- **Schedule（scheduleTask）**：OPT-18、OPT-19、OPT-28
-- **Composer（dashboardPortal / 通用 dashboard）**：OPT-20、OPT-21
+| 维度 | 覆盖 case |
+|------|----------|
+| Portal 模块（含双路径规则） | OPT-15 |
+| Schedule 模块（scheduleTask 上下文） | OPT-16（正向）、OPT-17（风险）|
+| "Why" 问题类型 | OPT-18 |
+| "What" 问题类型 | OPT-19 |
+| Data Worksheet — Concatenation 规则 | OPT-20 |
 
-### 新增问题类型覆盖
-- **"Why" 诊断类**：OPT-22（图表）、OPT-24（权限/EM）
-- **"What" 概念类**：OPT-23（双组件识别）
-
-### 新增 Data Worksheet 专项覆盖
-- **data block（union）**：OPT-25
-- **Named Grouping**：OPT-26
-
-### 风险场景验证（预期可能失败）
+### 风险场景（预期可能失败）
 | CaseID | 风险描述 | 预期失败原因 |
 |--------|---------|------------|
-| OPT-19 | scheduleTask 上下文被 Dashboard 优先级压过 | Dashboard score=0 > Portal score=2，schedule task 可能被过滤 |
-| OPT-20 | dashboardPortal 无专属代码过滤 | 依赖 LLM 感知 + 优先级排序，Portal 内容可能丢失 |
-| OPT-28 | scheduleTask 空结果产生非标准 module 名 | 兜底逻辑将 contextType 字符串直接作为 module 名返回 |
+| OPT-17 | scheduleTask 上下文被 Dashboard 优先级压过 | Dashboard score=0 > Portal score=2，schedule task 可能被过滤 |
 
 
