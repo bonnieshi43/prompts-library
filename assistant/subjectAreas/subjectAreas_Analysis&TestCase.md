@@ -24,21 +24,29 @@
          └── NO  → getEnhancedSubjectAreas()（Enhanced Path）
                       ├── 有历史 → 用 completedQuery 重新调用 getSimpleSubjectArea()
                       ├── 再检查 explicitly_mentioned=true → 返回
-                      ├── 有 contextType → 按 context 过滤 SubModule
+                      ├── 有 contextType（且在已处理类型中）→ 按 context 过滤 SubModule
                       └── 无匹配 → 按 Module/SubModule 优先级排序，取 Top 1
 ```
 
 **ContextType 完整映射表**（来自 `shared/types/contextMap.ts`）：
 
-| UI contextType | 内部字符串 | 代码中匹配关键词 |
-|---------------|-----------|----------------|
-| chart | "visualization dashboard chart" | submodule 含 "chart" |
-| crosstab | "visualization dashboard crosstab" | submodule 含 "crosstab" |
-| table | "visualization dashboard table" | submodule 含 "table"（不含 freehand）|
-| freehand | "visualization dashboard freehand table" | submodule 含 "freehand" |
-| worksheet | "data worksheet" | module 含 "worksheet" |
-| dashboard | "visualization dashboard" | 无具体过滤（直接走优先级） |
-| em | "enterprise manager" | — |
+| UI contextType | 内部字符串 | 代码层过滤逻辑 | 备注 |
+|---------------|-----------|--------------|------|
+| chart | "visualization dashboard chart" | submodule 含 "chart" | 支持 others 回退 |
+| crosstab | "visualization dashboard crosstab" | submodule 含 "crosstab" | 支持 others 回退 |
+| table | "visualization dashboard table" | submodule 含 "table" | ⚠️ 代码层未排除 freehand table（见风险说明）；支持 others 回退 |
+| freehand | "visualization dashboard freehand table" | submodule 含 "freehand" | 支持 others 回退 |
+| worksheet | "data worksheet" | module 含 "worksheet" | 无 others 回退，不命中则透传 |
+| dashboard | "visualization dashboard" | 无代码层过滤 | 直接走优先级排序 |
+| portal | "portal data" | 无代码层过滤 | 直接走优先级排序；LLM 会感知并返回 Portal 相关模块 |
+| em | "enterprise manager" | 无代码层过滤 | 直接走优先级排序；EM 优先级最低（score=2） |
+| scheduleTask | "schedule task" | 无代码层过滤 | 影响 LLM 返回 Portal/EM > scheduled task；代码层无对应分支，走优先级排序（见风险说明） |
+| dashboardPortal | "pinned dashboard" | 无代码层过滤 | 影响 LLM 返回 Dashboard 相关；代码层无对应分支，走优先级排序 |
+| (空/undefined) | — | 跳过整个 context 过滤块 | 直接走优先级排序；兜底模块为 "Dashboard" |
+
+> **⚠️ 代码层 table 过滤 Bug**：`getEnhancedSubjectAreas` 中 table 分支使用 `includes("table")` 进行匹配，
+> 会命中 "freehand table"。而 `isModuleMatchingContext` 函数则正确加了 `&& !includes("freehand")` 排除。
+> 两处逻辑不一致，实际执行 context 过滤时 freehand table 可能被误纳入 table 结果。
 
 ---
 
@@ -50,7 +58,7 @@
 |--------|--------------|--------|
 | Dashboard | 可视化、展示、排序、聚合、格式化 | 默认优先 |
 | Data Worksheet | 数据建模、关系、预处理、变量、命名分组（Named Grouping） | 中等 |
-| Portal | Join/Link、数据类型变更（双路径触发） | 强制（双路径）|
+| Portal | Join/Link、数据类型变更（双路径触发）、数据源/数据模型/VPM | 强制（双路径）|
 | Enterprise Manager | 权限/用户/角色/组/审计/系统配置 | **强制覆盖**（忽略问题中其他组件）|
 
 ### 风险点
@@ -153,7 +161,8 @@ explicitly_mentioned = false 条件（需同时满足全部）：
 
 ### 4.7 ZERO-MATCH 兜底规则
 
-- 有 contextType 时 → 返回对应 contextType 的 subjectArea，explicit=false
+- 有 contextType（且在已处理类型 chart/crosstab/table/freehand/worksheet 中）→ 返回对应 contextType 的 subjectArea，explicit=false
+- 有 contextType 但不在已处理类型中（如 portal/em/scheduleTask/dashboardPortal/dashboard）→ 走优先级排序兜底
 - 无 contextType 时 → 返回 `{Dashboard, explicit=false}` 作为兜底
 
 ---
@@ -172,11 +181,30 @@ explicitly_mentioned = false 条件（需同时满足全部）：
 
 **逻辑**：无 explicit 时，按 contextType 在 LLM 结果中过滤匹配的 submodule
 
-**Context 过滤映射**：
-- contextType=chart → 过滤出含 "chart" 的 submodule
-- contextType=crosstab → 过滤出含 "crosstab" 的 submodule；若无匹配但有 `others`，则回退为 crosstab
-- contextType=freehand → 过滤含 "freehand" 的 submodule；`others` 回退为 freehand
-- contextType=worksheet → 过滤含 "worksheet" 的 module；无结果则透传原结果按优先级排序
+**有代码层过滤分支的 contextType**：
+
+| contextType | 过滤条件 | 无匹配时的 others 回退 |
+|-------------|----------|----------------------|
+| chart | submodule 含 "chart" | 推断为 `Dashboard > chart` |
+| crosstab | submodule 含 "crosstab" | 推断为 `Dashboard > crosstab` |
+| freehand | submodule 含 "freehand" | 推断为 `Dashboard > freehand` |
+| table | submodule 含 "table"（⚠️ 实际会命中 freehand table，见 Bug 说明）| 推断为 `Dashboard > table` |
+| worksheet | module 含 "data worksheet" 或 "worksheet" | 无回退，直接透传原结果按优先级排序 |
+
+**无代码层过滤分支（透传到优先级排序）**：
+
+| contextType | 内部字符串 | 实际行为 |
+|-------------|-----------|---------|
+| dashboard | "visualization dashboard" | 无 if-else 分支命中 → 走优先级排序 |
+| portal | "portal data" | 无 if-else 分支命中 → 走优先级排序 |
+| em | "enterprise manager" | 无 if-else 分支命中 → 走优先级排序 |
+| scheduleTask | "schedule task" | 无 if-else 分支命中 → 走优先级排序（Portal/EM 优先级最低，可能被 Dashboard 压过）|
+| dashboardPortal | "pinned dashboard" | 无 if-else 分支命中 → 走优先级排序 |
+| (空) | — | `parsedContext?.contextType` 为 false → 跳过整个过滤块 |
+
+> **scheduleTask 关键风险**：scheduleTask 上下文会让 LLM 倾向返回 Portal > scheduled task 或
+> EM > scheduled task，但代码层没有对应过滤分支，且 Portal/EM 在优先级排序中优先级最低（score=2），
+> 若 LLM 同时返回 Dashboard 相关模块，Portal/EM scheduled task 可能被排在后面被过滤掉。
 
 ### 5.3 Enhanced Path：优先级排序（无 context 匹配时）
 
@@ -190,10 +218,10 @@ explicitly_mentioned = false 条件（需同时满足全部）：
 
 | 场景 | preferRewriteWithContext |
 |------|--------------------------|
-| context 过滤命中 | `true` |
+| context 过滤命中（chart/crosstab/table/freehand/worksheet）| `true` |
 | explicit=true（Fast Path）| `false`（Fast Path 不设置）|
 | 无 context，优先级排序路径 | `false` |
-| context=worksheet，LLM 返回有 Worksheet 模块 | `true` |
+| context=portal/em/scheduleTask/dashboardPortal/dashboard（无过滤分支）| `false` |
 
 ### 5.5 singleModules submodule 强制 undefined
 
@@ -211,6 +239,11 @@ explicitly_mentioned = false 条件（需同时满足全部）：
 
 - LLM 返回 `subjectAreas: []`，无 contextType → `[{module: "Dashboard", submodule: undefined, explicitly_mentioned: false}]`
 - LLM 返回 `subjectAreas: []`，contextType=chart → `[{module: "visualization dashboard chart", submodule: undefined, explicitly_mentioned: false}]`
+
+> **⚠️ 非标准 contextType 的兜底风险**：
+> 代码为 `module: parsedContext?.contextType || vsModuleName`，当 LLM 返回空且 contextType 为
+> `"schedule task"` 或 `"pinned dashboard"` 时，兜底 module 会被赋值为这些字符串（非标准模块名），
+> 不匹配任何已知 Module（Dashboard/Data Worksheet/Portal/Enterprise Manager），可能导致下游路由异常。
 
 ---
 
@@ -279,6 +312,22 @@ contextType: chart
 | 最终 subjectAreas | [Enterprise Manager]，不含 Dashboard > chart |
 | contextType 的过滤影响 | 不应将 EM 过滤为 Dashboard > chart |
 
+### 场景五：scheduleTask contextType
+
+```
+当前问题："How to configure an email notification for a task?"
+contextType: scheduleTask（"schedule task"）
+```
+
+| 验证点 | 期望值 |
+|-------|-------|
+| LLM 识别 | Portal > scheduled task 或 Enterprise Manager > scheduled task |
+| 代码层过滤 | scheduleTask 无对应分支 → filteredAreas 为空 → 走优先级排序 |
+| 优先级排序 | Portal/EM score=2（最低）→ 若只有 Portal/EM，仍会返回 |
+| 最终 subjectAreas | [Portal] 或 [Enterprise Manager]（取决于 LLM 输出和优先级） |
+| preferRewriteWithContext | false（无过滤命中）|
+| 潜在风险 | LLM 若同时返回 Dashboard 相关，Dashboard 优先级更高会压过 Portal/EM |
+
 ---
 
 ## 测试优先级矩阵
@@ -293,9 +342,11 @@ contextType: chart
 | P1（重要）| Table 双模块原则 | 歧义场景高频出现 |
 | P1（重要）| Context 过滤 + others 回退 | 代码层逻辑 |
 | P1（重要）| preferRewriteWithContext 标记 | 影响 retrieval 策略 |
+| P1（重要）| scheduleTask contextType 路径 | 无代码层过滤，依赖优先级排序，存在 Portal/EM 被压过风险 |
 | P2（一般）| singleModules submodule 处理 | 代码层强制处理 |
 | P2（一般）| 优先级排序 | 兜底路径 |
-| P2（一般）| 空结果兜底 | 边界保护 |
+| P2（一般）| 空结果兜底（非标准 contextType）| 边界保护；scheduleTask/dashboardPortal 兜底 module 为非标准名 |
+| P2（一般）| table context 过滤含 freehand table | 代码层 includes("table") 未排除 freehand table |
 
 ---
 
@@ -311,79 +362,80 @@ contextType: chart
 | singleModules submodule 丢失 | Portal 的 subModule（data model/VPM 等）在代码层被清空，下游可能无法区分 | Medium |
 | Enhanced Path 的 completedQuery 质量 | 若 completedQuery 质量差，重跑 getSimpleSubjectArea 结果更差（噪声放大）| Medium |
 | others 的 context 回退 | 代码中 `othersArea` 检测仅靠 submodule 含 "others" 字符串，若 LLM 返回其他描述则回退失效 | Medium |
+| table context 过滤含 freehand table | `getEnhancedSubjectAreas` 用 `includes("table")` 过滤，会误命中 "freehand table"；与 `isModuleMatchingContext` 的逻辑不一致 | Medium |
+| scheduleTask 上下文无代码过滤 | scheduleTask contextType 传入 LLM 可引导返回 Portal/EM scheduled task，但代码层无对应过滤分支，直接走优先级排序（Portal/EM 优先级最低），有被 Dashboard 压过的风险 | Medium |
+| 非标准 contextType 的空结果兜底 | scheduleTask/dashboardPortal 上下文下 LLM 返回空时，兜底 module 值为 "schedule task"/"pinned dashboard"，不是合法 Module 名，可能导致下游路由错误 | Medium |
+| dashboardPortal 无代码过滤 | dashboardPortal 上下文无专属过滤分支，依赖 LLM 感知和优先级排序，Dashboard 优先级最高（score=0），一般不会出错，但若问题涉及 Portal 功能则可能丢失 | Low |
 
 ---
 
-## 测试用例表
+# SubjectAreas 优化版回归测试集
 
-| CaseID | 场景/类别 | User Query | 预期 module | 预期 subModule | explicitly_mentioned | 设计意图 |
-|--------|-----------|------------|-------------|----------------|----------------------|---------|
-| TC-M-01 | Module 基础：Dashboard 语义推断 | "How to visualize data in a report?" | Dashboard | chart | false | 通用可视化词语义推断到 Dashboard，chart 为默认最高优先级子模块，无独占概念出现 |
-| TC-M-02 | Module 基础：Data Worksheet 语义推断 | "How to preprocess raw data before modeling?" | Data Worksheet | — | false | 数据预处理是 DW 核心场景，仅语义推断，"Data Worksheet" 未出现 |
-| TC-M-03 | Module 基础：Enterprise Manager 语义推断 | "How to configure system settings?" | Enterprise Manager | — | false | 系统配置归属 EM，语义推断，无 "Enterprise Manager" 关键词，不触发强制规则 |
-| TC-M-04 | Module 基础：Portal 直接命名 | "How to manage data sources in the portal?" | Portal | — | true | "portal" 直接出现，显式命名 module |
-| TC-M-05 | Module 显式，subModule 语义推断 ★新增 | "How to set the background color in the Dashboard?" | Dashboard | chart（语义推断） | true | "Dashboard" 显式出现故 explicit=true，但无 subModule 名称，subModule 由优先级规则推断；验证 module 显式即可触发 true |
-| TC-C-01 | chart：图表类型名称直接触发 | "How to create a funnel chart?" | Dashboard | chart | true | "chart" 作为 subModule 名直接出现；module 由语义推断，subModule 显式命名 |
-| TC-C-02 | chart：独占概念触发（Legend） | "How to change the legend position?" | Dashboard | chart | true | "legend" 是 chart 独占概念，无需 "chart" 词出现即可触发 explicit=true；代表所有独占概念触发路径 |
-| TC-C-03 | chart：Axis 独占概念（历史 Bug 回归）⚠️ | "How to change the axis color?" | Dashboard | chart | true | **已知历史 Bug**：旧 prompt 对此用例返回 false，当前 prompt 修正后必须为 true，必须回归验证 |
-| TC-C-06 | chart：语义推断（无独占词） | "How to change the color of the visualization?" | Dashboard | chart | false | 通用可视化操作，无独占概念或模块名，仅语义推断为 chart；验证无独占词时 explicit=false |
-| TC-C-07 | Module 与 subModule 均显式提到 ★新增 | "How to format the legend in the Dashboard chart?" | Dashboard | chart | true | "Dashboard"（module）+ "chart"（subModule）均显式出现，"legend" 同时作为独占概念强化；验证双重命名场景 |
-| TC-CT-01 | crosstab：直接命名 | "How to sort rows in a crosstab?" | Dashboard | crosstab | true | "crosstab" 直接出现，显式命名 subModule |
-| TC-CT-02 | crosstab：Grand Total 规则（排除 table） | "How to display the Grand Total in a report?" | Dashboard | crosstab / freehand table | false | Grand Total 规则：必须包含 crosstab + freehand table，且排除 Dashboard > table；无显式 subModule 名 |
-| TC-CT-03 | crosstab：透视表语义推断 | "How to build a pivot table with row and column grouping?" | Dashboard | crosstab | false | "pivot table" + 行列分组语义触发 crosstab，"crosstab" 未出现，语义推断，explicit=false |
-| TC-FT-01 | freehand table：直接命名 | "How to design a custom layout in a freehand table?" | Dashboard | freehand table | true | "freehand table" 直接出现，显式命名 subModule |
-| TC-FT-02 | freehand table：cell formula 独占概念 | "How to write a cell formula for custom calculation?" | Dashboard | freehand table | true | "cell formula" 是 freehand table 独占概念，代表所有 freehand table 独占触发路径 |
-| TC-TR-01 | trend&comparison：YoY 强制触发 | "How to create a YoY comparison report?" | Dashboard | trend&comparison | true | YoY 是强制触发词，代表 YoY / MoM / period-over-period 三类触发词；必须返回 trend&comparison |
-| TC-TR-04 | trend&comparison：时间序列不触发（负面） | "How to display monthly sales as a time series?" | Dashboard | chart（不含 trend&comparison） | false | 时间序列不应触发 trend&comparison；代表所有"时间范畴"负面用例，验证严格性 |
-| TC-OT-01 | others：具体组件命名 | "How to add a slider to filter report data?" | Dashboard | others | true | Slider 是 others 类组件的代表性触发词，直接命名触发 |
-| TC-TB-01 | table：Dashboard > table 直接命名 | "How to hide a column in a table?" | Dashboard | table | true | "table" 直接出现，"隐藏列" 是 Dashboard > table 特征，确认归属 Dashboard 而非 DW |
-| TC-TB-02 | table：Table Style 例外规则（负面） | "How to apply a Table Style to the report?" | Dashboard | chart（语义推断） | false | "Table Style" 单独出现是例外规则，不触发 table 的 explicit=true |
-| TC-DW-01 | Data Worksheet：语义推断（表达式列） | "How to create a calculated expression column?" | Data Worksheet | data block | false | 表达式列是 DW 特有概念，语义推断，"Data Worksheet" 未出现，explicit=false |
-| TC-DW-02 | Data Worksheet：union concatenation 规则 | "How to perform a union of two data blocks?" | Data Worksheet | data block | true | "data block" 直接出现 + union 触发 concatenation 规则；代表所有 concatenation 触发路径 |
-| TC-EM-01 | Enterprise Manager：基础关键词触发 | "How to set read permission for a specific user?" | Enterprise Manager | — | true | permission 是 EM 强制触发词的代表，代表 permission / user / role / audit 所有触发路径 |
-| TC-EM-05 | Enterprise Manager：强制覆盖（含 subModule 干扰词） | "How to create a user role for the chart module?" | Enterprise Manager | — | true | "chart" 出现但 role/user 触发 EM 强制覆盖，结果中不应出现 Dashboard > chart |
-| TC-EM-06 | Enterprise Manager：强制覆盖（含 module 干扰词） | "How to set permissions for a dashboard?" | Enterprise Manager | — | true | "dashboard" 出现但 permissions 触发 EM 强制覆盖；与 TC-EM-05 区分：干扰在 module 级别而非 subModule 级别 |
-| TC-P-01 | Portal 双路径：Join 规则 | "How to join two data tables?" | Data Worksheet / Portal | — | true（均） | Join 触发双路径强制规则，代表 Join / Link / 数据类型变更 所有双路径场景；两者 explicit 均为 true |
-| TC-SP-01 | 特殊规则：Group 多模块强制（排除 table） | "How to group data by category?" | Dashboard / Data Worksheet | chart / crosstab / freehand table（排除 table） | false | Group 强制规则：必须同时返回 chart + crosstab + freehand table + DW，且严格排除 Dashboard > table |
-| TC-SP-02 | 特殊规则：Table 双模块原则（无 context） | "How to create a table to display records?" | Dashboard / Data Worksheet | table（Dashboard）/ —（DW） | true | 无 context 时 "table" 同时归属 Dashboard > table 和 Data Worksheet；"table" 直接出现故 explicit=true |
-| TC-SP-03 | 特殊规则：trend 与 chart 并行返回 | "How to do a YoY analysis in a bar chart?" | Dashboard | trend&comparison / chart | true（均） | YoY 触发 trend&comparison，"bar chart" 触发 chart，两子模块必须并行返回，均为 explicit=true |
-| TC-MX-01 | 多 subModule 均显式命名 ★新增 | "How to display data in a table or crosstab?" | Dashboard | table / crosstab | true（均） | "table" 和 "crosstab" 均显式出现，验证两个 subModule 并行识别且各自 explicit=true；与 TC-SP-03 区分：此处由用户主动命名而非规则触发 |
-| TC-FB-01 | ZERO-MATCH fallback ★新增 | "What is the capital of France?" | Dashboard | — | false | 完全无关的问题，触发 ZERO-MATCH 兜底规则，返回 Dashboard 作为默认 module，explicit=false |
+## 目标
+在保证 **高覆盖率** 的前提下减少冗余测试用例，用于验证：
+- module 识别
+- subModule 识别
+- Enhanced Path 逻辑
+
+优化原则：
+- 一条规则只保留一个最具代表性的 case
+- 删除仅关键词不同但逻辑相同的 case
+- 保留复杂规则、异常规则以及历史 bug 回归场景
+
+优化后总用例数：**14 条**
 
 ---
 
-## 用例覆盖统计
+# 优化后的测试用例
 
-| 类别 | 用例数 | 覆盖规则 |
-|------|--------|---------|
-| Module 基础识别 | 5 | Dashboard / DW / EM / Portal 语义推断；Module 显式+subModule 推断（★新增）|
-| chart 子模块 | 5 | 类型名直接触发；独占概念触发（Legend 代表）；历史 Bug 回归（Axis）；语义推断；双重命名（★新增）|
-| crosstab 子模块 | 3 | 直接命名；Grand Total 规则（排除 table）；透视表语义推断 |
-| freehand table 子模块 | 2 | 直接命名；cell formula 独占概念 |
-| trend&comparison | 2 | YoY 强制触发（代表三类触发词）；时间序列不触发（负面）|
-| others 子模块 | 1 | Slider 组件命名（代表 others 触发路径）|
-| table 子模块 | 2 | 直接命名；Table Style 例外规则（负面）|
-| Data Worksheet | 2 | 语义推断；union concatenation（代表所有 concatenation）|
-| Enterprise Manager | 3 | permission 基础触发（代表四类触发词）；含 subModule 干扰的强制覆盖；含 module 干扰的强制覆盖 |
-| Portal 双路径 | 1 | Join 规则（代表所有双路径触发场景）|
-| 特殊规则 | 3 | Group 多模块强制（排除 table）；Table 双模块原则；trend+chart 并行提取 |
-| 多 subModule 并列 | 1 | 用户主动命名两个 subModule（★新增）|
-| ZERO-MATCH fallback | 1 | 无关问题兜底（★新增）|
-| **合计** | **31** | |
+| CaseID | 场景说明 | contextType | User Query | 预期 Module | 预期 SubModule（Enhanced 最终结果） | explicitly_mentioned | 验证目的 |
+|------|------|------|------|------|------|------|------|
+| OPT-01 | module 语义推断基础场景 | — | How to visualize data in a report? | Dashboard | chart | false | 验证在无 context 情况下的基础语义识别 |
+| OPT-02 | module 与 subModule 同时显式提到 | dashboard | How to create a chart in the dashboard? | Dashboard | chart | true | 验证显式 module + subModule |
+| OPT-03 | module 显式但 subModule 需要语义推断 | dashboard | How to change the color of this dashboard component? | Dashboard | chart | false | 验证组件语义推断 |
+| OPT-04 | chart 独占概念识别 | chart | How to change the axis color? | Dashboard | chart | true | 验证 axis 等 chart 独占关键词 |
+| OPT-05 | crosstab 显式识别 | crosstab | How to sort rows in a crosstab? | Dashboard | crosstab | true | 验证 crosstab 直接识别 |
+| OPT-06 | Grand Total 规则 | — | How to display the Grand Total? | Dashboard | crosstab | false | 验证多组件冲突时的优先规则 |
+| OPT-07 | freehand table 独占功能 | freehand | How to write a cell formula for custom calculation? | Dashboard | freehand table | true | 验证 freehand table 专属能力 |
+| OPT-08 | others 组件识别 | dashboard | How to add a slider to filter data? | Dashboard | others | true | 验证非核心组件分类 |
+| OPT-09 | table 双 module 规则 | — | How to create a table to display records? | Dashboard / Data Worksheet | table | true | 验证 table 同属两个 module |
+| OPT-10 | trend 强关键词触发 | — | How to create a YoY comparison report? | Dashboard | trend&comparison | true | 验证 YoY 触发趋势分析 |
+| OPT-11 | trend 负例验证 | — | How to display monthly sales as a time series? | Dashboard | chart | false | 避免误判为 trend |
+| OPT-12 | context 过滤 + fallback | freehand | How to configure this component? | Dashboard | freehand table | false | 验证 context filtering |
+| OPT-13 | Enterprise Manager 覆盖规则 | chart | How to create a user role for the chart module? | Enterprise Manager | — | true | 验证 EM override |
+| OPT-14 | 无匹配 fallback | — | What is the capital of France? | Dashboard | — | false | 验证完全无法识别时的 fallback |
 
 ---
 
-## explicitly_mentioned 判断依据说明
+# 覆盖范围总结
 
-| 触发类型 | 判断结果 | 代表用例 |
-|---------|---------|---------|
-| 直接出现 module 名称 | true | TC-M-04、TC-M-05、TC-C-07 |
-| 直接出现 subModule 名称 | true | TC-C-01、TC-CT-01、TC-FT-01、TC-TB-01 |
-| 出现 chart 独占概念（legend/axis/Target Line/Series 等）| true | TC-C-02、TC-C-03、TC-C-07 |
-| 出现 freehand table 独占概念（cell formula/cell binding）| true | TC-FT-02 |
-| 出现 trend 强制触发词（YoY/MoM/period-over-period）| true | TC-TR-01、TC-SP-03 |
-| EM 强制触发词（permission/user/role/audit）| true | TC-EM-01、TC-EM-05、TC-EM-06 |
-| Portal 双路径触发词（join/link/data type change）| true（均）| TC-P-01 |
-| 仅通用行为/语义推断 | false | TC-M-01、TC-M-02、TC-C-06、TC-DW-01 |
-| Table Style 例外规则 | false | TC-TB-02 |
-| ZERO-MATCH 兜底 | false | TC-FB-01 |
+## Module 覆盖
+- Dashboard
+- Data Worksheet
+- Enterprise Manager
+- fallback
+
+## SubModule 覆盖
+- chart
+- crosstab
+- freehand table
+- table
+- trend&comparison
+- others
+
+## 核心识别逻辑
+已覆盖：
+
+- 显式识别
+- 语义推断
+- 独占关键词
+- 多组件冲突规则
+- context 过滤
+- fallback 逻辑
+- 负例验证
+
+---
+
+
+
+

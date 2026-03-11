@@ -19,7 +19,7 @@
 ```plaintext
 你是一名 AI 测试工程师。
 
-根据 subjectAreas_analysis.md 中对 Module / SubModule 识别规则的分析，
+根据以上对 Module / SubModule 识别规则的分析，
 生成一组回归测试用例，用于验证 subjectAreas prompt 是否能正确识别：
 - module
 - subModule
@@ -27,23 +27,29 @@
 
 要求：
 1. 只有用户问题（User Query）使用英文，其余内容使用中文。
-2. 每个测试用例包含：
-   - CaseID
-   - 场景/类别
-   - User Query
-   - 预期 module
-   - 预期 subModule
-   - 预期 explicitly_mentioned
-   - 设计意图
-3. 每个测试用例只验证一个识别规则或识别场景，避免测试点重复。
-4. explicitly_mentioned 判断规则：
+2. 每个测试用例包含以下字段：
+   * CaseID
+   * 场景/类别
+   * contextType
+   * User Query
+   * 预期 module
+   * 预期 subModule
+   * explicitly_mentioned
+   * 设计意图
+3. explicitly_mentioned 判断规则：
    - 用户问题中明确出现 module 或 submodule 名称 → true
    - 仅通过语义推断得到 → false
-5. 所有测试用例放在一个 Markdown 表格中输出，输出保存到md文件
+4. 对于explicitly_mentioned=false，预期结果要最终Enhanced后的结果
+5. case要求：
+  - 每个 case 尽量只验证一个规则
+  - 每条规则只保留一个最具代表性的 case
+  - 删除冗余 case
+  - 保证高覆盖率
+   
+6. 所有测试用例放在一个 Markdown 表格中输出，输出保存到md文件
 
 表格格式：
-
-| CaseID | 场景/类别 | User Query | 预期 module | 预期 subModule | explicitly_mentioned | 设计意图 |
+| CaseID | 场景/类别 | User Query | 预期 module | 预期 subModule | explicitly_mentioned | 设计意图
 ```
 
 ## 第三阶段：让 claude review case
