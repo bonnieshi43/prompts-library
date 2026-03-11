@@ -12,7 +12,7 @@
 - 新建组织 `org-ci1/ci1`，并赋予org admin role
 - 新建组织 `org-ci2/ci2`，并同样赋予org admin role
 - 新建用户'ci1',并赋予org admin role
-- 导入'Import ExamplesNoDB.zip '到host org
+- 导入'Import CaseEnv.zip'到host org
 
 ---
 
