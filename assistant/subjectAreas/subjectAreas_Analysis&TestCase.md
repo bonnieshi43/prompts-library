@@ -5,8 +5,6 @@
 > - Prompt: `server/prompts/subjectAreas/querySubjectAreas.prompt`
 > - Tool: `server/src/tools/retrieval/getSubjectArea.ts`
 > - Node: `server/src/agents/chatAgent/nodes/subjectAreas.ts`
-> - Notebook: `experiment/notebooks/subjectArea/querySubjectAreas.ipynb`
-> - Notebook: `experiment/notebooks/subjectArea/historyEnhancedSubjectAreas.ipynb`
 
 ---
 
