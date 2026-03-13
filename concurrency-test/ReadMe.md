@@ -9,10 +9,11 @@
    ```
 
 ## 启用 Security和准备环境
-- 新建组织 `org-ci1/ci1`，并赋予org admin role
-- 新建组织 `org-ci2/ci2`，并同样赋予org admin role
-- 新建用户'ci1',并赋予org admin role
 - 导入'Import CaseEnv.zip'到host org
+- In EM setting properties "security.exposedefaultorgtoall=true"
+- 创建org-ci1/ci1(success123),授予ci1（Org Admin）角色。
+- 创建org-ci2/ci2(success123),授予ci1（Org Admin）角色。
+- 在host-org 创建user ci1,授予Org Admin）角色。
 
 ---
 
