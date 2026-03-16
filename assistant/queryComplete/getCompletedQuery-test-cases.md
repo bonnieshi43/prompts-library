@@ -154,6 +154,7 @@ test/promptfoo-test/completeQuery/
 | S3-2 | 选择 "Sales Amount" → 保留 aggregation 意图 | L1+L2+L3 | 自然语言选项中选一项，验证选择项与原始目标合并 |
 | S3-3 | 选择 "Current Row" + script 历史 | L1+L2+L3 | 核心验证点：script=true 历史下，选择型回答必须保持表达式导向，不能变成 UI 操作步骤 |
 | S3-4 | 两轮澄清后的 "Yes" → 追溯完整意图 | L1+L3 | Prompt 要求追溯"最近完整的多轮链"，验证嵌套澄清时追溯深度是否正确。keyword 无法表达嵌套意图的质量 |
+| S3-5 | 单字母选项 "A" → 解析选项文本 + 合并原始意图 | L1+L2+L3 | 助手给出 (A)(B)(C) 字母列表，用户回复 "A"。LLM 必须从历史中读取选项文本，将 "A" 解析为 "legend label text color"，再与原始问题合并。check-not-passthrough 阻止裸传 "A"；L2 验证选项内容词命中；L3 验证语义完整性 |
 
 ---
 
@@ -239,6 +240,7 @@ test/promptfoo-test/completeQuery/
 | S3-2 | 选择 Sales Amount | L1+L2+L3 | **P0** |
 | S3-3 | 选择 Current Row + script | L1+L2+L3 | **P0 script 导向** |
 | S3-4 | 嵌套澄清后 Yes | L1+L3 | P1 |
+| S3-5 | 字母选项 "A" 解析 | L1+L2+L3 | **P0** |
 | S4-1 | 否定反馈 don't like | L2+L3 | P1 |
 | S4-2 | 寻求替代方案 | L2+L3 | P1 |
 | S5-1 | Portal 历史 → Visual | L1+L2+L3 | P1 明确 Prompt 规则 |
