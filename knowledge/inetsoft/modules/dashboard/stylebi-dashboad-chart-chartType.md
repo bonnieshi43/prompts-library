@@ -19,7 +19,7 @@ The goal is to organize charts based on shared structural or functional characte
 
 ## StyleBI Chart Axis Capability Classification
 
-| Axis Type | Axis Characteristics | Typical Charts | Typ知识库关联分析ical Axis Features / Functions |
+| Axis Type | Axis Characteristics | Typical Charts | Typical Axis Features / Functions |
 | :--- | :--- | :--- | :--- |
 | axis-based | X / Y coordinate axes | Bar, Line, Area, Point, Scatter, Bubble, Step Line, Jump Line, Step Area, Waterfall, Pareto, Scatter Matrix, Trellis Chart (Grid), Dot Plot, Interval, Box Plot, Histogram, 3D Bar | axis label position, axis scale, axis formatting, axis title, axis binding |
 | multi-axis | Supports multiple value axes, possible left/right axes | Dual Axis Chart, Multiple Measure Chart, Multiple Style Chart | secondary axis, axis alignment, axis label grouping |
