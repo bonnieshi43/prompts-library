@@ -1,11 +1,17 @@
-## doc_type: feature-test-doc
-product: StyleBI
-module: 权限管理
-feature_id: 72687
-feature_name: 批量资产权限设置与复制
-pr_link: https://github.com/inetsoft-technology/stylebi/pull/2747
-last_updated: 2026-03-10
 
+
+---
+doc_type: feature-test-doc
+product: StyleBI
+module: Security
+feature_id: 72687
+feature: 批量资产权限设置与复制
+pr_link: https://github.com/inetsoft-technology/stylebi/pull/2747
+issue_link: [http://173.220.179.100/issues/72687](http://173.220.179.100/issues/72687)
+Assignee: Franky Pan
+last_updated: 2026-03-10
+version: stylebi-1.1.0
+---
 # 1 Feature Summary
 
 为管理员用户提供批量资产权限设置与复制功能，支持通过多选操作一次性为多个Content/Action统一设置组/用户/角色的权限（读/写/分享等），减少重复操作并提升效率。
@@ -99,10 +105,10 @@ last_updated: 2026-03-10
 
 | Bug ID  | Description                            | Status |
 |---------|----------------------------------------|--------|
-| 74072   | copy permission只能全部copy未支持部分   | 未解决 |
-| 74070   | Folder单项copy有问题                   | 未解决 |
-| 74074   | 批量操作相关UI文本本地化异常            | 未解决 |
-| 74073   | 同组织用户copy permission信息未同步     | 未解决 |
-| 74079   | 跨组织userinfo批量操作判断缺失          | 未解决 |
+| 74072   | copy permission只能全部copy未支持部分   | closed |
+| 74070   | Folder单项copy有问题                   | closed |
+| 74074   | 批量操作相关UI文本本地化异常            | closed |
+| 74073   | 同组织用户copy permission信息未同步     | closed |
+| 74079   | 跨组织userinfo批量操作判断缺失          | closed |
 
 ---
