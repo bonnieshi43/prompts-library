@@ -3,8 +3,7 @@
 2.chart类型的切换
 3.mutilstyle的应用
 4.和一些属性的结合使用，比如glossy effect 影响
-5.script Bug #74168
-6.bar区域的选择，比如brush等
+5.bar区域的选择，比如brush等
 
 ---
 
@@ -106,6 +105,7 @@
 - **UI / 本地化**                                           🔴 **测试-分析**：已添加本地化
   - 图表属性面板显示与默认值
   - 本地化标签/提示语
+- **script**                                           🔴 **测试-分析**：还没做 Bug #74168
 
 ### 涉及模块
 - 渲染 Engine（BarVO/IntervalElement）

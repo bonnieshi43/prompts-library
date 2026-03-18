@@ -5,7 +5,7 @@ module: chart
 feature_id: 74102
 feature: Feature #74102 Bar chart rounded corners
 pr_link: https://github.com/inetsoft-technology/stylebi/pull/3047
-Assignee: FigurePaper
+Assignee: Franky Pan
 last_updated: 2026-03-13
 version: stylebi-1.1.0
 ---
