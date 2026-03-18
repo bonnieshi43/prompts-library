@@ -4,8 +4,8 @@ product: StyleBI
 module: Viewsheet / Input Components
 feature_id: #58617
 feature: Combobox Query Date Format
-pr_link: https://github.com/bonnieshi43/test-garden/pull/17
-Assignee: sally
+pr_link: https://github.com/inetsoft-technology/stylebi/pull/2779
+Assignee: Stephen Webster
 last_updated: 2026-03-12
 version: stylebi-1.1.0
 ---
