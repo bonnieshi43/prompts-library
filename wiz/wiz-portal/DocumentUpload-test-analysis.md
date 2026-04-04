@@ -1,6 +1,6 @@
 # DocumentUpload 测试分析报告
 
-> 基于 `Front end testing scenario-v3.md` 方法论生成
+> 基于 `Front end testing scenario-v5.md` 与 `unit-test-techniques-supplement.md` 的方法论生成
 > 组件路径：`wiz-portal/src/components/DocumentUpload.tsx`
 > 测试文件：`wiz-portal/src/test/DocumentUpload-v2.test.tsx`
 
