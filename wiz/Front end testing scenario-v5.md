@@ -8,14 +8,34 @@
 
 # 输入
 
-**范围（必填）**：本次要**补充 unit case** 的 **一个或多个** 源码路径（文件或目录，每行一条，相对仓库根目录）。
+组件说明或代码：
 
-**约定**：仅依据这些路径下的实现做分析；若上下文里还没有文件内容，**先读取路径再执行后续阶段**。多文件注意跨文件契约；目录可先按文件分表或合并一表（在说明里写清即可）。
+{{在此粘贴组件代码或描述}}
 
-**补充（选填）**：现有测试文件/框架、本轮重点、已知 bug。若只能粘贴代码，**仍写上对应文件路径**。
+---
 
-```
-{{路径与可选说明}}
+# 测试框架约束（强制）
+
+- 单元测试（unit case）**必须**使用 **Angular Testing Library** 编写。
+- 接口请求 Mock **必须**使用 **MSW（Mock Service Worker）**。
+- 若现有测试未遵循上述约束，新增与改造测试时需统一迁移到该组合。
+- 每个 unit case **必须**挂靠到某个明确场景（按 Group / Scenario 组织），禁止零散堆砌。
+- 每条 case 前根据测试点适当增加简短“case 说明”注释，可以包含：`场景目标`、`风险点/契约`、`为何高价值`（可含 `🔁` 回归标记）。
+- 所有的注释**必须**使用英文.
+
+示例（建议风格，参考 `schedule-task-list.component.tl.spec.ts` 文件头与分组方式）：
+
+```ts
+// Group 2 — viewsheet/bookmark behavior
+describe("... Group 2 ...", () => {
+  // 🔁 Regression-sensitive: Must clear old highlights when switching viewsheet to avoid dirty state across reports
+  // Scenario Objective: Validate consistency of switching behavior
+  // Risk Point/Contract: Failure to clear old state may lead to erroneous submissions
+  // Why High Value: This path is high-frequency and can easily be broken during refactoring
+  it("should clear highlight settings and refresh dependent data when switching viewsheet", async () => {
+    // ...
+  });
+});
 ```
 
 ---
