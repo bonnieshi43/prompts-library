@@ -114,10 +114,10 @@ Mark regression-sensitive scenarios with 🔁.
 | Group risk | Max cases per group |
 |------------|---------------------|
 | Risk 3 | ≤ 4 |
-| Risk 2 | ≤ 2 |
-| Risk 1 | ≤ 1 |
+| Risk 2 | ≤ 3 |
+| Risk 1 | ≤ 2 |
 
-**File total cap** = (Risk3 groups × 4) + (Risk2 groups × 2) + (Risk1 groups × 1)
+**File total cap** = (Risk3 groups × 4) + (Risk2 groups × 3) + (Risk1 groups × 2)
 
 The per-group cap is fixed — it prevents over-expansion on any single method. The file total scales naturally with component size: a 2-method component caps at ~10, an 800-line file with 8 Risk 3 groups caps at ~36.
 
@@ -142,8 +142,8 @@ Every test file must open with a JSDoc block containing three sections:
  * ComponentName — Testing Library style
  *
  * Risk-first coverage:
- *   Group 1  — methodName: one-sentence contract summary
- *   Group 6  — methodName: dependency filter contract (it.fails — confirmed bug)
+ *   Group 1 [Risk 3]  — methodName: one-sentence contract summary
+ *   Group 9 [Risk 2]  — methodName: dependency filter contract (it.fails — confirmed bug)
  *
  * Confirmed bugs (it.fails — remove wrapper once fixed):
  *
@@ -172,7 +172,21 @@ it("should ...", async () => { ... });
 
 ---
 
-## D3 — Output Table
+## D3 — Multi-contract Assertion Rule
+
+For every `valid=false` assertion, also assert the **state that caused it** (the getter/flag driving the warning display) — both the one that *should* be active and any that *should not* be:
+
+```ts
+expect(emitted[0].valid).toBe(false);
+expect(comp.findDuplicate).toBeTruthy();        // correct warning active
+expect(comp.findDuplicateFormat).toBeFalsy();   // no false-positive warning
+```
+
+Asserting only `valid=false` cannot distinguish wrong-reason failures (right output, wrong warning shown to user) from correct ones.
+
+---
+
+## D4 — Output Table
 
 | Risk | Group | Scenario | Type | Description | Why High Value | 🔁 |
 |------|-------|----------|------|-------------|----------------|----|
