@@ -104,6 +104,7 @@ Type: stylebi-feature-test-analysis
     - UI与Script是否同步
     - 若新增加script，Auto-complete 是否工作
   - **文档一致性**：若功能新增或变更，需验证文档/API的描述；若新增功能性 Dialog / 全新页面 / 新的 UI 功能入口，需要验证 Help 文档是否同步更新
+- **Mobile影响检查**:若设计响应式布局、触摸交互、工具栏折叠、弹窗尺寸、图表手势、导航路由，需要测试。
 
 ---
 
