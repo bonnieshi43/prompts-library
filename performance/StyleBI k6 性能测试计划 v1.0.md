@@ -46,24 +46,25 @@
 ## 2. Performance 测试（Phase 1）
 
 ## 2.1 P0 - Dashboard 打开性能基线
+> **💡 测试注释**：纯渲染测试
+
 
 ### 目标
 
-建立不同复杂度 Dashboard 的打开性能基线。
+建立不同复杂度 Dashboard 的打开性能基线，这里的数据我们都使用5000row以下的正常使用数据
 
 ### 要验证的问题
 
-- Simple / Medium / Large Dashboard 的打开时间分别是多少？
-- Large Dashboard 在小用户量下是否已经明显偏慢？
-- 打开性能是否随数据量显著增加？
+- Simple / Medium / Large Dashboard 的打开时间分别是多少？（这里的复杂度指的是图的个数）
+- 
 
 ### 推荐测试资产
 
 | Dashboard | 复杂度 | 数据量 |
 |---|---|---|
-| Dashboard_Simple | 1 图 + 1 选择器 | 100K |
-| Dashboard_Medium | 2~4 图 + 1 选择器 | 100K / 1M |
-| Dashboard_Large | 4 图以上 + 联动 | 1M / 10M |
+| Dashboard_Simple | 5图以下 + 1 选择器 | 5000row |
+| Dashboard_Medium | 6-10 图 + 1 选择器 | 5000row |
+| Dashboard_Large | 10 图以上 + 联动 | 5000row |
 
 ### 测试场景
 
@@ -85,6 +86,7 @@
 ---
 
 ## 2.2 P0 - Dashboard 筛选联动性能基线
+> **💡 测试注释**：这里的测试是在1的基础上做的，复杂图不同的dashboard+filter,来测试数据处理后的响应性能
 
 ### 目标
 
@@ -98,15 +100,14 @@
 
 ### 测试场景
 
-| 场景编号 | Dashboard | 数据量 | 筛选操作 | 用户量 |
+| 场景编号 | Dashboard | 数据量 | 筛选操作 |
 |---|---|---|---|---:|
-| PF-SEL-01 | Dashboard_Simple | 100K | 单次筛选 | 1 |
-| PF-SEL-02 | Dashboard_Medium | 1M | 单次筛选 | 1 |
-| PF-SEL-03 | Dashboard_Large | 1M | 单次筛选 | 1 |
-| PF-SEL-04 | Dashboard_Large | 10M | 单次筛选 | 1 |
-| PF-SEL-05 | Dashboard_Large | 10M | 连续 5 次不同筛选 | 1 |
-| PF-SEL-06 | Dashboard_Large | 10M | 筛选 → 清除 → 再筛选 | 1 |
-
+| PF-SEL-01 | Dashboard_Simple | 5000row以下 | 单次筛选 |
+| PF-SEL-02 | Dashboard_Medium | 5000row以下 | 单次筛选 |
+| PF-SEL-03 | Dashboard_Large | 5000row以下 | 单次筛选 |
+| PF-SEL-04 | Dashboard_Large | 5000row以下| 单次筛选 |
+| PF-SEL-05 | Dashboard_Large | 5000row以下 | 连续 5 次不同筛选 |
+| PF-SEL-06 | Dashboard_Large | 5000row以下| 筛选 → 清除 → 再筛选 |
 > 注：本阶段为单用户联动性能基线测试，不涉及并发。
 
 ### 输出结论
@@ -118,12 +119,15 @@
 ---
 
 ## 2.3 P1 - 大数据量 Performance 测试
+   > **💡 测试注释**：这里也像上面p0的测试一样，分成渲染和数据处理响应两个层级测试，这次参数主要改变的数据量）
 
 ### 目标
 
 验证 Dashboard 在不同数据量级下的性能表现，找出数据量拐点。
 
 ### 测试场景
+
+> **💡 测试注释**：这个1M等是ai根据我当前机子的配置基于stylebi项目推荐的行数，这个具体情况还得根据实际情况调整
 
 | 场景编号 | Dashboard | 数据量 | 用户量 |
 |---|---|---|---:|
