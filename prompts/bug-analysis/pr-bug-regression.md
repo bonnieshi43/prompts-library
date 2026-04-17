@@ -12,7 +12,8 @@ Type: stylebi-bug-regression-analysis
 # Output Structure（严格按此格式）
 
 ## 1. 改动总结
-- **一句话**：[改了什么，解决什么问题]
+- **bug描述**：
+- **解决**：[改了什么，解决什么问题]
 - **行为差异**：修改前 vs 修改后（1-2 句）
 
 ## 2. 影响范围
