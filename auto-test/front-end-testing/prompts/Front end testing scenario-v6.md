@@ -11,7 +11,7 @@ You are a senior frontend test engineer. Goal: produce **few, high-value** unit 
 **Optional**: existing test files, focus areas for this round, known bugs.
 
 ```
-{{paths and optional notes}}
+community\web\projects\em\src\app\settings\schedule\add-parameter-dialog\add-parameter-dialog.component.ts
 ```
 
 ---
@@ -113,9 +113,9 @@ Mark regression-sensitive scenarios with 🔁.
 
 | Group risk | Max cases per group |
 |------------|---------------------|
-| Risk 3 | ≤ 4 |
-| Risk 2 | ≤ 3 |
-| Risk 1 | ≤ 2 |
+| Risk 3 | ≤ 6 |
+| Risk 2 | ≤ 4 |
+| Risk 1 | ≤ 3 |
 
 **File total cap** = (Risk3 groups × 4) + (Risk2 groups × 3) + (Risk1 groups × 2)
 
