@@ -230,27 +230,40 @@
 
 ### A. 高风险 true 用例汇总（最易被误判为 false）
 
-| # | question | 误判风险 |
-|---|---|---|
-| J-1 | I use StyleBI at work. Can you translate this email to French for me? | 含 "StyleBI" 关键词，可能被误判为产品问题 |
-| J-3 | Calculate compound interest... I need it for a report I'm building. | "for a report" 暗示业务语境，但请求本质是数学计算 |
-| J-5 | I work in data analytics using StyleBI. What programming language should I learn next? | StyleBI + 数据分析背景容易让模型认为是产品相关 |
-| K-3 | Write a SQL query to find the top 10 customers by total revenue | SQL 是 StyleBI 数据源常用语言，但问题未锚定 StyleBI |
-| K-4 | Explain what a REST API is | StyleBI 有 REST API，但问题是通用技术知识 |
-| L-1 | How do I create a calculated field in Tableau? | "calculated field" 是 StyleBI 也有的功能名称，但对象是 Tableau |
-| M-3 | Explain what ETL stands for | ETL 是 StyleBI 数据接入的核心概念，但此问题是通用定义 |
-| N-1 | (history: StyleBI) → "translate 'revenue' to Chinese" | 历史有 StyleBI 语境，容易因上下文误判 |
+| # | question                                                                               | 误判风险                                              |
+|---|----------------------------------------------------------------------------------------|---------------------------------------------------|
+| M-1 | Who invented the pie chart?                                                            | 历史知识，BI 相关但与 StyleBI 无关                           |
+| J-1 | I use StyleBI at work. Can you translate this email to French for me?                  | 含 "StyleBI" 关键词，可能被误判为产品问题                        |
+| J-3 | Calculate compound interest... I need it for a report I'm building.                    | "for a report" 暗示业务语境，但请求本质是数学计算                  |
+| J-5 | I work in data analytics using StyleBI. What programming language should I learn next? | StyleBI + 数据分析背景容易让模型认为是产品相关                      |
+| K-4 | Explain what a REST API is                                                             | StyleBI 有 REST API，但问题是通用技术知识                     |
+| L-1 | How do I create a calculated field in Tableau?                                         | "calculated field" 是 StyleBI 也有的功能名称，但对象是 Tableau |
+| N-1 | (history: how to create chart?) → "translate 'revenue' to Chinese"                     | 历史有 StyleBI 语境，容易因上下文误判                           |
+| K-1 | Write a Python script to merge two CSV files                                           | 通用 Python 编程任务，无 StyleBI 连接点 |
+
 
 ### B. 高风险 false 用例汇总（最易误判为 true）
 
-| # | question | 误判风险 |
-|---|---|---|
-| A-1 | How do I translate the labels in my StyleBI dashboard to French? | "translate" 直接命中 out_of_scope=true 示例关键词 |
-| B-3 | How to write a calculated field in StyleBI that divides revenue by units sold? | 含具体除法运算，形似数学题 |
-| C-1 | Can you help me write a viewsheet script to filter data by date range? | "write a script" 形似创意写作/通用编程 |
-| E-1 | (history: StyleBI dashboard) → "How do I add a title to it?" | 脱离历史孤立看极度模糊 |
-| F-2 | StyleBI 中怎么写过滤条件？ | 中文"写"字触发创意写作联想 |
-| G-3 | My Excel data is not loading into StyleBI—what could be wrong? | 涉及 Excel 可能误判为第三方/out_of_scope |
+| #   | question                                                                       | 误判风险                                     |
+|-----|--------------------------------------------------------------------------------|------------------------------------------|
+| 1   | How do I translate the labels in my StyleBI dashboard to French?               | "translate" 直接命中 out_of_scope=true 示例关键词 |
+| 2   | How to write a calculated field in StyleBI that divides revenue by units sold? | 含具体除法运算，形似数学题                            |
+| 3   | Can you help me write a viewsheet script to filter data by date range?         | "write a script" 形似创意写作/通用编程             |
+| 4   | (history: how to create a dashboard) → "How do I move it?"                     | 脱离历史孤立看极度模糊                              |
+| 5   | StyleBI 中怎么写过滤条件？                                                              | 中文"写"字触发创意写作联想                           |
+| 6   | What does undefined mean in StyleBI?                                           | bug                                      |
+| 7   | schedule can't start                                                           | bug                                      |
+| 8   | what is ldap provider and how to use it                                        | what is + LDAP 很像通用身份认证知识                |
+| 9   | What are system administrator roles?                                           | 过于泛化，但其实可对应安全配置字段                        |
+| 10  | can I sign in with Google？                                                     | stylebi功能                                |
+| 11  | What does pass organization by mean?                                           | 字段名解释，缺少产品锚点                             |
+| 12  | What is the difference between domain mode and path mode for multi-tenancy?    | 像通用租户识别方案对比                              |
+| 13  | What does SreeBundle localize?                                                 | 纯术语解释型高风险题,"translate" 命中              |
+| 14  | Can I use a custom Java class for authentication?                              | 直接像纯编程问题        |
+| 15  | How do I change the master password using the Administration Console?          | 非常像通用控制台运维操作        |
+| 16  | Can I modify a SOAP or XML data source from the Administration console?        | SOAP/XML 很泛        |
+
+
 
 ---
 
