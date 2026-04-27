@@ -53,6 +53,10 @@ k6 run -e SERVER_IP=localhost -e CONTEXT_PATH=/sree -e USERS=1 -e RAMPUP_TIME=5s
 
 🔴 **测试-分析**：热启动下的viewsheet open时间458 ms（约 0.46 秒），selection_time: 677.20 ms（约 0.68 秒）
 
+k6 run -e SERVER_IP=localhost -e CONTEXT_PATH=/sree -e VSNAME=Examples/Census -e CHART_NAME=Chart -e USERS=1 -e RAMPUP_TIME=5s -e ACTION_TYPE=brush -e BRUSH_INDEX=12 dist/test-d1.js
+
+🔴 **测试-分析**： 这个brsuh_index的值是StyleBI 图表 brush 事件里那一个被选中数据点的位置编号(也就是这个点在table length上的值)
+
 
 ---
 
