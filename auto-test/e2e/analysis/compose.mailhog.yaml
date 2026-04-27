@@ -1,0 +1,16 @@
+services:
+  mailhog:
+    image: "mailhog/mailhog:latest"
+    restart: unless-stopped
+    ports:
+      - "8025"
+
+  storage:
+    environment:
+      INETSOFTENV_MAIL_SMTP_HOST: "mailhog"
+      INETSOFTENV_MAIL_SMTP_PORT: "1025"
+
+  server:
+    depends_on:
+      mailhog:
+        condition: service_started
