@@ -1,298 +1,335 @@
 ---
-module: Dashboard Management (EM + Portal)
+module: Dashboard Deployment (EM + Portal)
 source: Content-Dashboard.xlsx
 Excel-path: direct
-last-updated: 2026-05-08
-
+last-updated: 2026-05-09
 ---
 
 ## Filtering Summary
 
 | Category | Count |
 |----------|-------|
-| Discarded UI scenarios | 27 |
-| Kept P1 | 8 |
-| Kept P2 | 3 |
+| Discarded UI scenarios | 18 |
+| Kept P1 | 12 |
+| Kept P2 | 6 |
 | Needs clarification | 1 |
+
+---
 
 ## Feature Summary
 
-The Dashboard feature allows administrators (Site admin/Org admin) and end users to create, organize, and view dashboards that display Viewsheet data. Global Dashboards are managed exclusively in Enterprise Manager (EM), are read-only in the Portal, and require security/permissions for visibility. User Dashboards are created in the Portal, can be edited in both Portal and EM, and have restrictions on binding private assets owned by other users.
+This feature enables administrators and users to create, manage, and deploy dashboards in a BI portal. Two dashboard types exist: **Global Dashboard** (managed in EM by org admins, read‑only in Portal) and **User Dashboard** (created/edited by end users in Portal, also editable by admins in EM). The system supports two security modes (`security=true` enforces permission checks; `security=false` makes all dashboards visible) and a multi‑tenant architecture where dashboards are isolated by organization.
 
-## Rules & Notes
+---
 
-### Business Rules
-- **Global Dashboard creation:** Only through EM → Content → Repository → Portal Dashboard → New Dashboard
-- **User Dashboard creation:** Only through Portal端 (Dashboard tab → Configuration → Add)
-- **Global Dashboard editing:** Only in EM; Portal端 has read-only access
-- **User Dashboard editing:** Both Portal端 and EM support editing (with cross-end sync)
-- **Delete cascade:** Deleting a dashboard removes it from EM Repository tree, Portal Dashboard tab, and Arrange dialog
-- **Viewsheet binding restriction:** Cannot bind another user's private Viewsheet to any dashboard (Bug #69468 - by design restriction)
-- **Dashboard naming:** Cannot be empty; cannot contain special characters `~`! #%^*()=[]{}|;':"<>?,./` no duplicates allowed
+## Environment Differences
 
-### Security & Multi-Tenancy (if applicable)
-- **security=false:** Global dashboards display on Portal by default (Enable checked). User dashboards stored under `User Dashboard/anonymous`.
-- **security=true:** Global dashboards require explicit ACCESS permission grants to users/groups/roles. User dashboards stored under respective organization's user folder.
-- **multi-tenant:** User dashboards saved under corresponding org's user portal dashboard tab folder. Org admin owns dashboard resources created within their org.
+| Behavior | security=false | security=true | multi‑tenant |
+|----------|----------------|---------------|---------------|
+| Dashboard visibility | ‘Enabled’ checkbox controls Portal display | ACCESS permission on dashboard controls Portal display | Org admin controls visibility within own org |
+| Storage location (User Dashboard) | Under ‘User Dashboard/anonymous’ | Under ‘User Dashboard/<username>’ (host‑org or org‑specific folder) | Under each org’s user folder |
+| ‘Enable’ checkbox in EM | Editable, directly controls Portal visibility | Disabled – visibility managed via Security tab | Same as security=true within the org |
+| Default after clone (Global Dashboard) | N/A | N/A | Dashboard **resource** cloned, **Enable state** not cloned (org admin must re‑enable) |
+
+---
 
 ## Scenario Overview
 
-| ID | Priority | Area | Scenario | Key Business Assertion |
-|----|----------|------|----------|----------------------|
-| TC-001 | P1 | CRUD | Create and publish a Global Dashboard with Viewsheet binding | Global dashboard appears in EM tree, Portal tab, and respects security visibility rules |
-| TC-002 | P1 | CRUD | Org admin edits Global Dashboard properties | Name, description, and bound Viewsheet update correctly across EM and Portal |
-| TC-003 | P1 | CRUD | Org admin changes Global Dashboard visibility (Enable/Security) | Enable toggles control Portal visibility; Security grants control user-specific access |
-| TC-004 | P1 | Cross-Module | Delete Global Dashboard and verify cascading removal | Dashboard removed from EM tree, Portal tab, and Arrange dialog |
-| TC-005 | P1 | CRUD | User creates and arranges User Dashboard in Portal | User dashboard appears, can be reordered, renamed, and bound to a Viewsheet |
-| TC-006 | P1 | Cross-Module | Sync User Dashboard edits between Portal and EM | Name/Viewsheet changes from Portal reflect in EM, and vice versa |
-| TC-007 | P1 | CRUD | Delete User Dashboard from Portal | Dashboard removed from Portal, EM, and Arrange dialog |
-| TC-008 | P2 | Cross-Module | User Dashboard binding to private Viewsheet shows restriction in EM | EM shows "Select Viewsheet" as empty when editing another user's dashboard |
-| TC-009 | P2 | Bug Regression | Clone organization does NOT copy dashboard Enable state (Bug #69387) | Cloned org receives dashboard resources but Enable=false |
-| TC-010 | P2 | Bug Regression | Site admin edits org's dashboard via Org Filter | Changes sync correctly between Site admin view and Org admin view |
+### Env: security=true (完整 CRUD + 差异验证)
+
+| ID | Priority | Scenario | Key Business Assertion |
+|----|----------|----------|----------------------|
+| TC‑001 | P1 | Create Global Dashboard with valid vs | Dashboard created, auto‑opened, name follows ‘Dashboard+N’ |
+| TC‑002 | P1 | Edit Global Dashboard name, description, vs | Changes sync bi‑directionally between EM and Portal |
+| TC‑003 | P1 | Delete Global Dashboard | Resource removed from EM tree, Portal tab, and Arrange dialog |
+| TC‑004 | P1 | Reorder Global Dashboards | Order changed in EM Arrange pane → order changed on Portal tab |
+| TC‑005 | P1 | User Dashboard – full CRUD from Portal | Dashboard appears under correct user folder, editable in EM, deletable |
+| TC‑006 | P1 | Edit User Dashboard vs across scopes | Switching between global vs and same‑scope vs works, syncs correctly |
+| TC‑007 | P1 | Arrange User Dashboard visibility | Disabling dashboard in Portal hides it; EM ‘Enable’ unchanged (when security=false) |
+
+### Env: security=false (仅差异验证)
+
+| ID | Priority | Scenario | Key Business Assertion |
+|----|----------|----------|----------------------|
+| TC‑008 | P2 | Default storage location when security=false | User Dashboard stored under ‘anonymous’ folder |
+| TC‑009 | P2 | ‘Enabled’ checkbox controls Portal visibility | Unchecking ‘Enabled’ hides dashboard from Portal; checking shows it |
+
+### Env: multi-tenant (完整 CRUD)
+
+| ID | Priority | Scenario | Key Business Assertion |
+|----|----------|----------|----------------------|
+| TC‑010 | P1 | Site admin creates Global Dashboard for another org | Dashboard owned by target org admin (Bug #69387) |
+| TC‑011 | P1 | Org admin edits own Global Dashboard | Changes apply within org, not visible to other orgs |
+| TC‑012 | P1 | User Dashboard stored in correct org folder | Dashboard saved under org’s user folder, visible only within that org |
+
+---
 
 ## Scenarios
 
-#### TC-001 Create Global Dashboard and verify visibility on Portal `P1` `[CRUD]`
+### Env: security=true
 
-**Scope:** EM (Site admin) → Portal (end user)
-**Validates rule:** Global Dashboard creation; security=false visibility baseline
+#### TC‑001 Create Global Dashboard with valid vs `P1` `[env: security=true]` `[CRUD]`
 
-**Pre-conditions:** security=false; Site admin logged into EM
+**Scope:** EM → Repository → Portal Dashboard node
+**Validates rule:** Global dashboard creation flow; default naming; vs selection required
+
+**Pre‑conditions:** security=true; User logged in with EM permission + Portal Dashboard Tab permission
 
 **Steps:**
-1. In EM, navigate to Content → Repository → Portal Dashboard node
-2. Click "New Dashboard" from dropdown
-3. Enter name: "Sales Overview", description: "Quarterly sales metrics"
-4. Select a Viewsheet from the tree (root path or folder containing a Viewsheet)
-5. Click Apply
-6. Login to Portal as any user
-7. Navigate to Dashboard tab
+1. In EM, select ‘Dashboard’ node under Repository → Portal Dashboard
+2. Click ‘New Dashboard’ from dropdown menu
+3. Enter valid name (letters/numbers/Chinese/`A@$&-+_`)
+4. Select a Viewsheet from the tree (any folder except ‘My Reports’)
+5. Click ‘Apply’
 
 **Expected:**
-- EM: "Sales Overview" appears under Dashboard node in Repository tree
-- Portal: "Sales Overview" appears on Dashboard tab by default (since security=false)
-- Clicking the dashboard displays the bound Viewsheet content
+- Dashboard created with name `Dashboard+index` (e.g., Dashboard1)
+- Dashboard auto‑opens in EM edit pane
+- Created dashboard visible in Repository tree under ‘Dashboard’ node
+- Portal shows the dashboard (via Arrange dialog, because ACCESS permission defaults to creator)
+
+#### TC‑002 Edit Global Dashboard name, description, vs `P1` `[env: security=true]` `[CRUD]` `[Cross-Module]`
+
+**Scope:** EM edit pane + Portal Dashboard tab
+**Validates rule:** Changes in EM sync to Portal
+
+**Pre‑conditions:** security=true; Existing Global Dashboard with a vs bound
+
+**Steps:**
+1. In EM, select an existing Global Dashboard
+2. Change name to a new valid value
+3. Change description to any text (including special characters)
+4. Change bound vs to a different vs (global scope)
+5. Click ‘Apply’
+6. **Sync check:** Portal Dashboard tab — dashboard name and description tooltip updated
+7. **Sync check:** Portal — dashboard displays new vs content
+
+**Expected:**
+- All changes saved without error
+- EM tree shows new name
+- Portal reflects all three changes immediately (no refresh required)
+
+#### TC‑003 Delete Global Dashboard `P1` `[env: security=true]` `[CRUD]`
+
+**Scope:** EM Delete action + Portal cleanup
+**Validates rule:** Deletion removes dashboard from all system locations
+
+**Pre‑conditions:** security=true; Existing Global Dashboard (not the only dashboard)
+
+**Steps:**
+1. In EM, select a Global Dashboard
+2. Click Delete icon, then confirm ‘OK’
+3. **Sync check:** Portal Dashboard tab — dashboard no longer appears in dropdown or Arrange dialog
+4. **Sync check:** EM Arrange pane (under Dashboard node) — dashboard removed from list
+
+**Expected:**
+- Dashboard disappears from EM Repository tree
+- Portal has no reference to deleted dashboard
+
+#### TC‑004 Reorder Global Dashboards `P1` `[env: security=true]` `[CRUD]` `[Cross-Module]`
+
+**Scope:** EM Arrange pane + Portal Dashboard tab ordering
+**Validates rule:** Dashboard order is synchronized and persistent
+
+**Pre‑conditions:** security=true; At least 3 Global Dashboards exist
+
+**Steps:**
+1. In EM, select ‘Dashboard’ node → go to Arrange pane
+2. Use ‘Up’ / ‘Down’ icons to move middle dashboard to top position
+3. Click ‘Apply’
+4. **Sync check:** Portal Dashboard tab — dashboard order matches new order
+5. **Sync check:** EM Arrange pane — order persists after page refresh
+
+**Expected:**
+- Order changed successfully in EM Arrange pane
+- Portal dropdown shows same order
+- Order survives refresh/re‑login
+
+#### TC‑005 User Dashboard – full CRUD from Portal `P1` `[env: security=true]` `[CRUD]`
+
+**Scope:** Portal Dashboard tab + EM Repository tree
+**Validates rule:** User dashboards created in Portal are visible in EM and stored under correct user folder
+
+**Pre‑conditions:** security=true; User logged into Portal with dashboard creation rights
+
+**Steps:**
+1. In Portal, go to Dashboard tab → click Configuration icon
+2. Select ‘Add’ → enter unique name, select a vs (not ‘Compose Dashboard’)
+3. Click ‘OK’
+4. **Sync check:** EM → Repository → ‘User Dashboard/<username>’ — dashboard listed
+5. In Portal, select the new dashboard → Configuration → ‘Edit’ → change name
+6. **Sync check:** EM — dashboard name updated
+7. In Portal, select the same dashboard → Configuration → ‘Delete’ → confirm
+8. **Sync check:** EM — dashboard removed from user folder
+
+**Expected:**
+- Dashboard stored under correct user folder (not ‘anonymous’)
+- EM can read and edit the dashboard (name, description, vs)
+- Delete from Portal removes it completely from system
+
+#### TC‑006 Edit User Dashboard vs across scopes `P1` `[env: security=true]` `[CRUD]` `[Cross-Module]`
+
+**Scope:** Portal Edit Dashboard dialog + EM view
+**Validates rule:** User dashboard can bind both global vs and user‑scope vs; change syncs
+
+**Pre‑conditions:** security=true; Existing User Dashboard; at least one global vs and one user vs available
+
+**Steps:**
+1. In Portal, select a User Dashboard → Configuration → ‘Edit’
+2. Change bound vs from current vs to a **global vs**
+3. Click ‘OK’
+4. **Sync check:** EM — dashboard shows new global vs in edit pane
+5. Repeat steps 1‑3, changing vs to a **different user‑scope vs** (same user)
+6. **Sync check:** Portal — dashboard displays content of the new user vs
+
+**Expected:**
+- Both global‑scope and user‑scope vs can be bound
+- Changes persist and are visible in both EM and Portal
+- No permission errors (user owns both vs types)
+
+#### TC‑007 Arrange User Dashboard visibility `P1` `[env: security=true]` `[CRUD]` `[Cross-Module]` `[env-diff]`
+
+**Scope:** Portal Arrange Dashboards dialog + EM Arrange pane
+**Validates rule:** Portal ‘Enable’ toggles affect Portal visibility but not EM’s ‘Enable’ value (when security=false; for security=true, ‘Enable’ is disabled)
+
+**Pre‑conditions:** security=false (as per rule – EM ‘Enable’ is editable); Existing User Dashboard
+
+**Steps:**
+1. In Portal, open Arrange Dashboards dialog (Configuration → ‘Arrange’)
+2. Locate a User Dashboard, uncheck its ‘Enable’ checkbox
+3. Click ‘OK’
+4. **Sync check:** Portal Dashboard tab — dashboard no longer visible
+5. **Sync check:** EM → select the dashboard — ‘Enable’ checkbox remains **unchanged** (still true)
+6. Re‑enable dashboard in Portal Arrange dialog
+7. **Sync check:** Portal — dashboard visible again
+
+**Expected:**
+- Portal’s ‘Enable’ only controls Portal display; does not modify EM’s ‘Enable’ attribute
+- EM Arrange pane still lists the dashboard (disabled dashboards shown in EM Arrange when security=false)
 
 ---
 
-#### TC-002 Org admin edits Global Dashboard properties `P1` `[CRUD]`
+### Env: security=false
 
-**Scope:** EM (Org admin)
-**Validates rule:** Global Dashboard editing; cross-end sync
+#### TC‑008 Default storage location for User Dashboard when security=false `P2` `[env: security=false]` `[env-diff]`
 
-**Pre-conditions:** Global Dashboard "Sales Overview" exists (from TC-001); Org admin logged into EM; security=false
+**Scope:** EM Repository → User Dashboard node
+**Validates rule:** When security=false, user dashboards are stored under ‘anonymous’ folder
+
+**Pre‑conditions:** security=false; User creates a User Dashboard in Portal
 
 **Steps:**
-1. In EM, select "Sales Overview" dashboard
-2. Change name to "Sales Quarterly Report"
-3. Change description to "Updated Q3-Q4 metrics"
-4. Change bound Viewsheet to a different global Viewsheet
-5. Click Apply
-6. Refresh Portal Dashboard tab
+1. In Portal, create a new User Dashboard (valid name, any vs)
+2. **Check:** EM → Repository → ‘User Dashboard’ node
 
 **Expected:**
-- EM: Dashboard name and description updated in Repository tree
-- EM: Selected Viewsheet highlight reflects new binding
-- Portal: Dashboard displays new name, description appears as tooltip, new Viewsheet content loads
+- Dashboard appears under ‘User Dashboard/anonymous’
+- Not under a username folder
+
+#### TC‑009 ‘Enabled’ checkbox directly controls Portal visibility when security=false `P2` `[env: security=false]` `[env-diff]`
+
+**Scope:** EM Dashboard edit pane + Portal Dashboard tab
+**Validates rule:** When security=false, the ‘Enabled’ checkbox is editable and determines Portal visibility
+
+**Pre‑conditions:** security=false; Existing Global Dashboard with ‘Enabled’ = true
+
+**Steps:**
+1. In EM, select a Global Dashboard
+2. Uncheck the ‘Enabled’ checkbox, click ‘Apply’
+3. **Sync check:** Portal Dashboard tab — dashboard not visible (not in dropdown, not on tab)
+4. Back in EM, re‑check ‘Enabled’, click ‘Apply’
+5. **Sync check:** Portal — dashboard visible again
+
+**Expected:**
+- ‘Enabled’ checkbox is fully editable when security=false
+- Portal visibility follows the ‘Enabled’ value exactly
+- No permission checks interfere
 
 ---
 
-#### TC-003 Org admin changes Global Dashboard visibility (Enable/Security) `P1` `[CRUD]`
+### Env: multi-tenant
 
-**Scope:** EM → Portal
-**Validates rule:** Enable controls Portal visibility; Security grants control access
+#### TC‑010 Site admin creates Global Dashboard for another org `P1` `[env: multi-tenant]` `[Multi-Tenant]` `[CRUD]`
 
-**Pre-conditions:** Global Dashboard exists; Site admin logged into EM
+**Scope:** EM with Org filter + target org’s admin view
+**Validates rule:** Dashboard resources and access belong to the target org’s administrators (Bug #69387)
 
-**Steps:**
-1. Set security=false, uncheck Enable on a dashboard → Apply
-2. Login to Portal → Verify dashboard not shown on Dashboard tab
-3. Return to EM, re-check Enable → Apply
-4. Refresh Portal → Dashboard appears again
-5. Switch security=true
-6. Grant ACCESS permission to a specific user on the dashboard via Security tab
-7. Login as that user → Verify dashboard visible on Portal tab
-8. Login as a different user (no permission) → Verify dashboard not visible
-
-**Expected:**
-- Portal visibility toggles with Enable (security=false)
-- With security=true, only users with explicit ACCESS permission see the dashboard
-
----
-
-#### TC-004 Delete Global Dashboard and verify cascade `P1` `[Cross-Module]`
-
-**Scope:** EM → Portal
-**Validates rule:** Delete cascade (EM tree + Portal tab + Arrange dialog)
-
-**Pre-conditions:** Global Dashboard "Test Delete" exists; security=false
+**Pre‑conditions:** multi‑tenant environment; Site admin logged in; At least two orgs (OrgA, OrgB)
 
 **Steps:**
-1. In EM, select dashboard from Repository tree
-2. Click Delete icon, confirm OK
-3. Check EM Repository tree
-4. Login to Portal, check Dashboard tab
-5. (If security=false) Check Arrange Dashboards dialog
+1. Site admin uses Org filter to switch to OrgB context
+2. In EM, create a new Global Dashboard (valid name, vs)
+3. **Check:** Repository shows dashboard under OrgB’s ‘Dashboard’ node
+4. Log in as OrgB’s org admin
+5. **Check:** EM – the dashboard is visible and editable (name, vs, description)
+6. **Sync check:** Portal (logged in as OrgB user) — dashboard appears in Arrange dialog
 
 **Expected:**
-- EM: Dashboard removed from Repository tree
-- Portal: Dashboard not visible on Dashboard tab
-- Arrange dialog: Dashboard not present in list
+- Dashboard owned by OrgB admins, not site admin
+- OrgB org admin can fully manage the dashboard
+- Cross‑org visibility does not occur (OrgA users cannot see it)
 
----
+#### TC‑011 Org admin edits own Global Dashboard `P1` `[env: multi-tenant]` `[Multi-Tenant]` `[CRUD]`
 
-#### TC-005 User creates and arranges User Dashboard in Portal `P1` `[CRUD]`
+**Scope:** Org admin EM edit + Portal within same org
+**Validates rule:** Changes made by org admin affect only that org’s Portal
 
-**Scope:** Portal (end user)
-**Validates rule:** User Dashboard creation, arrangement, editing
-
-**Pre-conditions:** User logged into Portal; at least one Viewsheet exists (user or global scope)
+**Pre‑conditions:** multi‑tenant; Org admin logged in for OrgA; Global Dashboard exists in OrgA
 
 **Steps:**
-1. Go to Dashboard tab, click Configuration gear icon
-2. Select Add
-3. Enter name: "My Pipeline", description optional
-4. Select a Viewsheet from Select Viewsheet pane
-5. Click OK → New dashboard appears on Dashboard tab
-6. Select Arrange from Configuration menu
-7. Use up/down arrows to change dashboard order, uncheck Enable on one dashboard
-8. Click OK
-9. Verify Dashboard tab order and visibility
-10. Select Edit on user dashboard → Change name to "My Sales Pipeline", change to different Viewsheet → OK
+1. Org admin edits dashboard name and bound vs
+2. Click ‘Apply’
+3. **Sync check:** Portal (OrgA user) — dashboard shows new name and vs
+4. **Sync check:** Portal (OrgB user) — dashboard unchanged or not visible (if not permitted)
 
 **Expected:**
-- New dashboard appears and loads correct Viewsheet
-- Arrange changes apply: order matches, disabled dashboards hidden
-- Edit persists name and Viewsheet change
+- Changes isolated to OrgA
+- No leakage of changes to other orgs
 
----
+#### TC‑012 User Dashboard stored in correct org folder `P1` `[env: multi-tenant]` `[Multi-Tenant]` `[CRUD]`
 
-#### TC-006 Sync User Dashboard edits between Portal and EM `P1` `[Cross-Module]`
+**Scope:** Portal user in specific org + EM Repository
+**Validates rule:** User Dashboard saved under the corresponding org’s user folder
 
-**Scope:** Portal + EM
-**Validates rule:** User Dashboard supports editing in both ends with synchronization
-
-**Pre-conditions:** User Dashboard "My Pipeline" exists (from TC-005); User has EM access with Portal Dashboard Tab permission
+**Pre‑conditions:** multi‑tenant; OrgA user logged into Portal; OrgB user logged in separately
 
 **Steps:**
-1. In Portal, edit dashboard name to "Updated Pipeline", change Viewsheet to a different user-scope Viewsheet → OK
-2. Login to EM as same user, navigate to Repository → User Dashboard → username folder
-3. Verify dashboard name and bound Viewsheet updated
-4. In EM, edit dashboard description, change Viewsheet back to original
-5. Refresh Portal Dashboard tab
-6. Verify description appears as tooltip and correct Viewsheet loads
+1. OrgA user creates a User Dashboard in Portal
+2. **Check:** EM (OrgA context) → Repository → ‘User Dashboard’ → folder named after OrgA user
+3. Log in as OrgB user; create a User Dashboard
+4. **Check:** EM (OrgB context) → folder named after OrgB user
+5. Verify OrgA user’s dashboard is **not** visible in OrgB’s EM
 
 **Expected:**
-- Portal edit syncs to EM Repository tree
-- EM edit syncs back to Portal
-- Bound Viewsheet persists correctly across both ends
-
----
-
-#### TC-007 Delete User Dashboard from Portal `P1` `[CRUD]`
-
-**Scope:** Portal
-**Validates rule:** Delete cascade (Portal + EM + Arrange)
-
-**Pre-conditions:** User Dashboard "To Delete" exists
-
-**Steps:**
-1. On Dashboard tab, select the user dashboard
-2. Click Configuration → Delete
-3. Confirm OK in dialog
-4. Check Dashboard tab for remaining dashboards (first dashboard auto-selected)
-5. Login to EM, check Repository → User Dashboard → username folder
-6. Check Arrange dialog (if applicable)
-
-**Expected:**
-- Dashboard removed from Portal tab
-- Dashboard absent from EM Repository tree
-- Arrange dialog no longer lists the dashboard
-
----
-
-#### TC-008 User Dashboard binding to private Viewsheet shows restriction in EM `P2` `[Cross-Module]`
-
-**Scope:** Portal + EM
-**Validates rule:** Cannot bind another user's private Viewsheet to any dashboard (Bug #69468 - by design)
-
-**Pre-conditions:** Two users: UserA and UserB; UserA has private Viewsheet "My Private VS"
-
-**Steps:**
-1. Login as UserA in Portal, create dashboard bound to "My Private VS"
-2. Login as UserB in EM (with permissions to see UserA's dashboard in Repository)
-3. Navigate to User Dashboard → UserA folder → select UserA's dashboard
-4. Check Select Viewsheet pane in Edit mode
-
-**Expected:**
-- Select Viewsheet pane shows no Viewsheet selected
-- Pane does not show "My Private VS" for selection
-- Previous binding preserved (cannot be changed to another user's private asset)
-
-> **Bug #69468** — By design restriction: "You cannot see assign private viewsheets that you do not own to dashboards."
-
----
-
-#### TC-009 Clone organization does NOT copy dashboard Enable state `P2` `[Multi-Tenant]`
-
-**Scope:** EM (Site admin)
-**Validates rule:** Clone organization copies dashboard resources but not Enable status; Org admin sets Enable independently (Bug #69387)
-
-**Pre-conditions:** security=false; Site admin logged in; Source org has a Global Dashboard with Enable=true
-
-**Steps:**
-1. In EM, clone source organization to new target organization
-2. Switch Org Filter to target organization
-3. Check EM Repository → Dashboard node: dashboard resource exists
-4. Check Portal Dashboard tab for target org user
-
-**Expected:**
-- Dashboard resource present in target org's EM Repository
-- Dashboard Enable=false by default (not visible on Portal)
-- Org admin can manually set Enable=true later
-
-> **Bug #69387** — Clone should copy resource but Enable state is managed by Org admin
-
----
-
-#### TC-010 Site admin edits org's dashboard via Org Filter `P2` `[Multi-Tenant]`
-
-**Scope:** EM (Site admin + Org admin)
-**Validates rule:** Site admin editing another org's dashboard via Org Filter syncs with Org admin view
-
-**Pre-conditions:** Multi-tenant environment; Org admin for OrgA; Site admin; Global Dashboard exists in OrgA
-
-**Steps:**
-1. Site admin uses Org Filter to switch to OrgA
-2. Edit dashboard name to "Sales Dashboard (OrgA)"
-3. Apply changes
-4. Org admin logs into EM under OrgA
-5. Check dashboard name
-
-**Expected:**
-- Org admin sees dashboard name "Sales Dashboard (OrgA)"
-- Both views remain synchronized
+- Each org’s user dashboards are stored and isolated under that org’s folder structure
+- Cross‑org visibility does not occur
 
 ---
 
 ## Uncovered Rules
 
+> 以下规则没有对应的 P1/P2 场景覆盖。P3 规则已丢弃。
+
 | Rule ID | Rule Description | Priority | Reason / Suggested Fix |
 |---------|------------------|----------|------------------------|
-| R-002 | User Dashboard with Compose Dashboard option opens Composer on create/edit | P3 | Discarded as compose behavior belongs to Composer module, not Dashboard module |
-| R-003 | Arrange dashboard order affects both EM Arrange page and Portal display | P1 | **COVERED by TC-005** (arrange order verification) |
-| R-005 | Switching security=false→true causes no dashboards on Portal until ACCESS granted | P2 | Not covered as security switching is explicitly marked "not very useful" in source |
+| R‑001 | Clone organization: Global Dashboard resource cloned but Enable state NOT cloned (Bug #69347 requires Bug #69387 fix) | P2 | [NEEDS SCENARIO] After #69387 is fixed, add: site admin enables dashboard → clone org → verify new org’s dashboard has Enable=false |
+| R‑002 | User Dashboard with private vs: EM can only see current user’s private assets when editing another user’s dashboard (Bug #69468) | P2 | [NEEDS SCENARIO] UserA creates dashboard with private vs → UserB (org admin) edits in EM → verify UserB sees only their own private vs, not UserA’s |
+| R‑003 | When security=true, ‘Enable’ checkbox is disabled in EM | P2 | Covered partially in TC‑007 environment note, but not as explicit standalone verification. Add check in TC‑007 precondition or as separate lightweight check. |
+
+---
 
 ## Clarification Needed
 
 | Item | Location | Issue |
 |------|----------|-------|
-| "Change vs" in Global Dashboard properties | Global Dashboard sheet, row "Change vs" | Unclear what "vs" refers to — likely "Viewsheet" (typo). Assuming Viewsheet binding throughout. |
+| “Compose Dashboard” feature | Sheet: User Portal‑Dashboard, rows 63‑74 | Excel references a ‘Compose Dashboard’ checkbox that opens composer. No further detail on what composing a dashboard means (creating a new vs? Combining multiple vs?). Skipped because not enough info. |
+
+---
 
 ## Related Module Tests
 
 | Related Module | Relationship | Suggested Extension |
 |----------------|-------------|---------------------|
-| Security | Permission grants (ACCESS) control Global Dashboard visibility when security=true | Run Global Dashboard visibility scenarios after Security module tests |
-| Composer | Compose Dashboard option opens Composer for ad-hoc dashboard creation | Not covered by Dashboard scenarios — belongs to Composer module |
-| Viewsheet | Dashboard binds to Viewsheet; deletion/rename of Viewsheet impacts dashboard | Add Viewsheet dependency scenarios (dashboard shows error when bound Viewsheet deleted) |
+| Security (Permissions) | Global Dashboard visibility depends on ACCESS permission when security=true | Run TC‑001/TC‑004 after assigning specific user/group/role permissions (grant/deny) to verify Portal visibility |
+| Organization (Clone Org) | Clone org behavior (Bug #69347, #69387) | After bug fixes, add scenario: site admin enables dashboard in source org → clone org → verify target org dashboard resource exists but Enable=false |
+| Multi‑tenancy (Org Filter) | Site admin switching org context | Add cross‑check: site admin creates dashboard in OrgA via Org filter → verify OrgB org admin cannot see or edit it |
