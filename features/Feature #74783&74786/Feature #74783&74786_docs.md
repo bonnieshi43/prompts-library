@@ -2,7 +2,7 @@
 doc_type: feature-test-doc
 product: Style BI
 module: Chart / Plot Options
-feature_id: #74783 & #74786
+feature_id: Feature 74783&74786
 feature: Smooth Lines for Area/Line Charts & Circular Network Charts
 type: feature-test-spec
 owner: Chart Team
