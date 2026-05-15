@@ -155,6 +155,43 @@ last-updated: YYYY-MM-DD
 
 ---
 
+## Manual Testing Summary
+
+> 手工测试执行指引。详细场景见下方 Scenarios，本部分仅提供方向和重点。
+
+### 核心规则 (一句话理解)
+- **Global Dashboard** = 管理员在 EM 创建，Portal 只读
+- **User Dashboard** = 用户在 Portal 创建，两端都可编辑
+- **security=true** → Portal 可见性由权限(ACCESS)控制
+- **security=false** → Portal 可见性由 `Enable` 复选框控制
+
+### 测试重点 (按优先级)
+
+| 优先级 | 测试方向 | 关键验证点 |
+|--------|----------|-----------|
+| P1 | 完整 CRUD | 创建/编辑/删除/排序后，EM + Portal 两端同步 |
+| P1 | 跨端同步 | EM 改 → Portal 变；Portal 改 → EM 变 |
+| P1 (多租户) | 组织隔离 | Site admin 为 OrgB 创建的 dashboard，只能被 OrgB 管理 |
+| P2 | 环境差异 (security=false) | User Dashboard 存于 `anonymous` 文件夹；`Enable` 直接控制可见性 |
+
+### 容易出问题的地方 (测试时重点关照)
+
+1. **Clone 组织后**：dashboard 资源被克隆，但 `Enable` 状态**不应被克隆** (Bug #69347)
+2. **私人 Viewsheet 跨用户编辑**：User Dashboard 绑定私人 vs，其他 admin 在 EM 看不到该 vs (Bug #69468)
+3. **排序同步**：EM Arrange 面板调整顺序 → Portal 必须立即同步，刷新后不丢失
+4. **`Enable` 语义混淆**：Portal Arrange 中的 `Enable` 只控制 Portal 显示，不改变 EM 中的 `Enable` 值
+
+### 必做联动模块测试
+
+| 联动模块 | 测试场景 | 最少用例数 |
+|----------|----------|-----------|
+| Security / 权限 | security=true 时，对 Global Dashboard 做 grant/deny ACCESS | 2 |
+| Organization / Clone Org | 克隆组织后，验证 Enable 状态重置为 false | 1 (等 bug 修复) |
+| Org Filter | Site admin 切换组织后创建/编辑 dashboard | 2 |
+| Viewsheet | User Dashboard 绑定 global vs + 私人 vs 两种类型 | 2 |
+
+---
+
 ## Environment Differences
 
 ---

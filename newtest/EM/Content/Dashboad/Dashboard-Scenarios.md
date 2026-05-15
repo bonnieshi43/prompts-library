@@ -22,6 +22,43 @@ This feature enables administrators and users to create, manage, and deploy dash
 
 ---
 
+## Manual Testing Summary
+
+> Manual test execution guide. For detailed scenarios, see the Scenarios section below. This section provides direction and key focus areas only.
+
+### Core Rules (One Sentence to Understand)
+- **Global Dashboard** = Created by admin in EM, read‑only on Portal
+- **User Dashboard** = Created by user on Portal, editable on both Portal and EM
+- **security=true** → Portal visibility controlled by ACCESS permissions
+- **security=false** → Portal visibility controlled by `Enable` checkbox
+
+### Testing Priorities (By Priority)
+
+| Priority | Test Direction | Key Verification Points |
+|----------|----------------|--------------------------|
+| P1 | Full CRUD | After create/edit/delete/arrange, EM + Portal stay in sync |
+| P1 | Cross‑end sync | EM change → Portal updates; Portal change → EM updates |
+| P1 (Multi‑tenant) | Organization isolation | Dashboard created by site admin for OrgB can only be managed by OrgB |
+| P2 | Environment differences (security=false) | User Dashboard stored under `anonymous` folder; `Enable` directly controls visibility |
+
+### Common Problem Areas (Pay extra attention when testing)
+
+1. **After Clone Organization**: dashboard resources are cloned, but `Enable` state **should NOT be cloned** (Bug #69347)
+2. **Private Viewsheet across users**: When a User Dashboard binds a private VS, other admins cannot see that VS in EM (Bug #69468)
+3. **Arrangement sync**: Changing order in EM Arrange panel → Portal must update immediately, survive refresh
+4. **`Enable` semantics confusion**: The `Enable` checkbox in Portal Arrange only controls Portal display, does NOT change the EM `Enable` value
+
+### Required Cross‑Module Tests
+
+| Related Module | Test Scenario | Minimum Test Cases |
+|----------------|---------------|---------------------|
+| Security / Permissions | When security=true, grant/deny ACCESS on Global Dashboard | 2 |
+| Organization / Clone Org | After cloning an org, verify Enable state resets to false | 1 (wait for bug fix) |
+| Org Filter | Site admin creates/edits dashboard after switching org filter | 2 |
+| Viewsheet | User Dashboard binds global VS + private VS (both types) | 2 |
+
+---
+
 ## Environment Differences
 
 | Behavior | security=false | security=true | multi‑tenant |
