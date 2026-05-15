@@ -6,16 +6,16 @@
 
 ## 目录结构约定
 
-- **Feature 文件夹**：`features/Feature #<id>/`
-  - 示例：`features/Feature #72694/`
-- **最终测试文档模板**：`features/feature-doc-template-v2.md`
+- **Feature 文件夹**：`features/c/Feature #<id>-module function descrtiption/`
+  - 示例：`features/Main Feature/Feature #70565-Chart Support SVG Shape`
+- **最终测试文档模板**：`features/Main Feature/Feature #<id>-module function descrtiption/feature-doc-template-v2.md`
 - **Feature 列表**：`features/feature list.md`
 
 ---
 
 ## 输出物命名建议（强烈建议统一）
 
-在 `features/Feature #<id>/` 下建议至少保留：
+在 `features/c/Feature #<id>-module function descrtiption/` 下建议至少保留：
 
 - **测试分析（原始分析稿）**：`F<id>-需求分析.md`（或 `F<id>-test-analysis.md`）
 - **逐条验证/带结论的测试分析稿**：在原始分析稿中直接用 🔴 标记补充结论（见下文）
@@ -45,7 +45,7 @@
 
 ### 1) 用 Prompt 生成“测试分析”md（从 Copilot / 浏览器）
 
-- **Prompt 来源**：使用 `\prompts\feature-analysis\generic` 下的 **两个版本 prompt**（按团队约定选用/对比）。
+- **Prompt 来源**：使用 `features\Prompts\Feature Analysis prompts` 下的 **两个版本 prompt**（按团队约定选用/对比）。
 - **Copilot 设置**：
   - 指定 **repository**
   - 指定 **知识库（knowledge base）**
@@ -53,7 +53,7 @@
   - 在 prompt 中提供你已知的 **所有 doc URL**（产品文档、API 文档、PR、Issue、设计稿等）
   - 让 AI 生成一份“测试分析”的 md 文档（包含风险点、关键路径、边界、回归影响、建议用例）
 
-**输出**：`features/Feature #<id>/F<id>-需求分析.md`（或同等命名）
+**输出**：`features/Feature #<id>-module function descrtiption/F<id>-需求分析.md`（或同等命名）
 
 ---
 
@@ -76,7 +76,7 @@
 
 - 输入：第 2 步完成的分析稿（含 🔴 标记）+ 专项拆解用例（如有）
 - 目标：将“与测试有关的内容”填充到：
-  - `features/feature-doc-template-v2.md`
+  - `features\Prompts\Feature Doc prompts\feature-doc-template-v1.md`
 - 生成 Feature 的最终测试文档（放在 `features/Feature #<id>/` 下）
 
 **输出**：`features/Feature #<id>/F<id>-doc.md`（或 `F<id>-doc2.md`）
