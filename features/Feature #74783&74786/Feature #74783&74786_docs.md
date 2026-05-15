@@ -5,11 +5,12 @@ module: Chart / Plot Options
 feature_id: Feature 74783&74786
 feature: Smooth Lines for Area/Line Charts & Circular Network Charts
 type: feature-test-spec
-owner: Chart Team
-assignee: TBD
-pr_link: TBD
+owner: tester
+assignee: Franky Pan
+pr_link1: https://github.com/inetsoft-technology/stylebi/pull/3609
+pr_link2: https://github.com/inetsoft-technology/stylebi/pull/3613
 last_updated: 2026-05-14
-version: 1.1.0
+version: stylebi-1.2.0
 ---
 
 ## 1 Feature Summary
@@ -135,21 +136,21 @@ version: 1.1.0
 
 | ID | Priority | Scenario | Steps | Expected | Result | Notes (risk/bug/link) |
 |---|---|---|---|---|---|---|
-| TC74783-1 | P0 | 新建图表默认状态验证 | 1. 创建 Area、Line、Circular 图表<br>2. 查看 Plot Options 面板 | Area/Circular 默认勾选，Line 默认未勾选 | | |
-| TC74783-2 | P0 | smoothLines 启用/禁用渲染 | 1. 创建 Area 图表<br>2. 启用 smoothLines<br>3. 禁用 smoothLines | 启用时曲线平滑，禁用时恢复直线 | | |
-| TC74783-3 | P0 | Area ↔ Line 类型转换 | 1. 创建 Area 启用 smoothLines<br>2. 转换为 Line<br>3. 转换回 Area | Area→Line 重置为 OFF，Line→Area 保持状态 | | Bug: 首次转换可能不同步 |
-| TC74783-4 | P0 | Circular ↔ Network/Tree 转换 | 1. 创建 Circular 启用 smoothLines<br>2. 转换为 Network | 转换后开关隐藏 | | Bug #74961 |
-| TC74783-5 | P0 | Multi-style 全局控制 | 1. 创建 Line + Area 图表<br>2. 启用 smoothLines | Line 和 Area 同步变为曲线 | | |
-| TC74783-6 | P0 | SVG 导出曲线保持 | 1. 创建启用 smoothLines 的 Area 图表<br>2. 导出 SVG | SVG 包含 data-smooth="true"，使用曲线命令 | | |
-| TC74783-7 | P1 | 多格式导出曲线保持 | 1. 创建启用 smoothLines 的 Area 图表<br>2. 导出 PNG/Excel/HTML/PDF | 所有格式曲线渲染正确 | | |
-| TC74783-8 | P1 | Step/Jump 图表开关隐藏 | 1. 创建 Step Area/Jump Line 图表<br>2. 查看 Plot Options | "Smooth Lines" 开关不可见 | | |
-| TC74783-9 | P1 | Network/Tree 图表开关隐藏 | 1. 创建 Network/Tree 图表<br>2. 查看 Plot Options | "Smooth Lines" 开关不可见 | | |
-| TC74783-10 | P1 | Circular 多段边缘保持直线 | 1. 创建包含多段路径的 Circular 图表<br>2. 启用 smoothLines | 多段路径保持直线，仅两点连线弯曲 | | |
-| TC74783-11 | P1 | 历史配置升级兼容 | 1. 导入旧版本图表配置<br>2. 查看渲染效果 | 保持原外观（smoothLines 默认 false） | | |
-| TC74783-12 | P2 | Script 控制 smoothLines | 1. 创建 Line 图表<br>2. Script 设置 chart.plot.smoothLines = true<br>3. 读取属性 | 图表渲染为曲线，读取返回 true | | Bug #74953 |
-| TC74783-13 | P2 | 算法差异验证 | 1. 创建 Area 和 Circular 图表启用 smoothLines<br>2. 对比渲染效果 | Area 使用 Catmull-Rom，Circular 使用二次 Bezier | | |
-| TC74783-14 | P2 | 多语言资源验证 | 1. 切换系统语言<br>2. 查看 Plot Options | "Smooth Lines" 显示对应语言翻译 | | |
-| TC74783-15 | P2 | 文档一致性验证 | 1. 创建各类型图表<br>2. 验证行为与文档描述一致 | 所有行为与文档描述一致 | | Documentation #74959 |
+| TC74783-1 | P0 | 新建图表默认状态验证 | 1. 创建 Area、Line、Circular 图表<br>2. 查看 Plot Options 面板 | Area/Circular 默认勾选，Line 默认未勾选 | ✅ PASS | 符合预期 |
+| TC74783-2 | P0 | smoothLines 启用/禁用渲染 | 1. 创建 Area 图表<br>2. 启用 smoothLines<br>3. 禁用 smoothLines | 启用时曲线平滑，禁用时恢复直线 | ✅ PASS | 符合预期 |
+| TC74783-3 | P0 | Area ↔ Line 类型转换 | 1. 创建 Area 启用 smoothLines<br>2. 转换为 Line<br>3. 转换回 Area | Area→Line 重置为 OFF，Line→Area 保持状态 | ❌ FAIL | Bug: 首次转换未save vs时渲染不同步 |
+| TC74783-4 | P0 | Circular ↔ Network/Tree 转换 | 1. 创建 Circular 启用 smoothLines<br>2. 转换为 Network | 转换后开关隐藏 | ❌ FAIL | Bug #74961 |
+| TC74783-5 | P0 | Multi-style 全局控制 | 1. 创建 Line + Area 图表<br>2. 启用 smoothLines | Line 和 Area 同步变为曲线 | ✅ PASS | 符合预期 |
+| TC74783-6 | P0 | SVG 导出曲线保持 | 1. 创建启用 smoothLines 的 Area 图表<br>2. 导出 SVG | SVG 包含 data-smooth="true"，使用曲线命令 | ✅ PASS | 符合预期 |
+| TC74783-7 | P1 | 多格式导出曲线保持 | 1. 创建启用 smoothLines 的 Area 图表<br>2. 导出 PNG/Excel/HTML/PDF | 所有格式曲线渲染正确 | ✅ PASS | 符合预期 |
+| TC74783-8 | P1 | Step/Jump 图表开关隐藏 | 1. 创建 Step Area/Jump Line 图表<br>2. 查看 Plot Options | "Smooth Lines" 开关不可见 | ✅ PASS | 符合预期 |
+| TC74783-9 | P1 | Network/Tree 图表开关隐藏 | 1. 创建 Network/Tree 图表<br>2. 查看 Plot Options | "Smooth Lines" 开关不可见 | ✅ PASS | 符合预期 |
+| TC74783-10 | P1 | Circular 多段边缘保持直线 | 1. 创建包含多段路径的 Circular 图表<br>2. 启用 smoothLines | 多段路径保持直线，仅两点连线弯曲 | ✅ PASS | 符合预期 |
+| TC74783-11 | P1 | 历史配置升级兼容 | 1. 导入旧版本图表配置<br>2. 查看渲染效果 | 保持原外观（smoothLines 默认 false） | ✅ PASS | 符合预期 |
+| TC74783-12 | P2 | Script 控制 smoothLines | 1. 创建 Line 图表<br>2. Script 设置 chart.plot.smoothLines = true<br>3. 读取属性 | 图表渲染为曲线，读取返回 true | ❌ FAIL | Bug #74953 |
+| TC74783-13 | P2 | 算法差异验证 | 1. 创建 Area 和 Circular 图表启用 smoothLines<br>2. 对比渲染效果 | Area 使用 Catmull-Rom，Circular 使用二次 Bezier | ✅ PASS | 符合预期 |
+| TC74783-14 | P2 | 多语言资源验证 | 1. 切换系统语言<br>2. 查看 Plot Options | "Smooth Lines" 显示对应语言翻译 | ✅ PASS | 已添加资源 |
+| TC74783-15 | P2 | 文档一致性验证 | 1. 创建各类型图表<br>2. 验证行为与文档描述一致 | 所有行为与文档描述一致 | ⏳ TBD | Documentation #74959 |
 
 ---
 
