@@ -90,6 +90,8 @@
 
 10. **[低 / Rendering] 移动端尺寸**：Card tooltip 使用 `max-width: 40vw / max-height: 40vh`，在小屏幕上可能裁剪内容（overflow: hidden），存在信息截断风险。
 
+11. **[低 / Documentation] 文档更新遗漏**：新增的 Card Tooltip 功能需要在官方文档中进行说明，若文档未同步更新，用户可能无法了解和正确使用该功能。
+
 ---
 
 ## 第四部分：Test Design（测试策略设计）
@@ -100,6 +102,7 @@
 - 新建图表的默认 Tooltip Style（CARD 还是 DEFAULT）
 - Tooltip Style 设置的持久化、保存与重新加载
 - 雷达图 tooltip 在 DEFAULT 和 CARD 模式下的正确性
+- 官方文档是否同步更新 Card Tooltip 功能说明
 
 **高风险路径**：
 - 新建图表后直接查看 tooltip，验证默认样式
@@ -131,13 +134,14 @@
 | 5 | 旧版 Dashboard 兼容性验证 | 数据一致性 |
 | 6 | Tooltip Style 切换后样式实时更新验证 | 交互与边界 |
 | 7 | 超过3条 Tooltip 数据的 Tier 渲染验证 | 交互与边界 |
-| 8 | 自定义模板 + Card 样式组合验证 | 交互与边界 |
+| 8 | 自定义模板 + Card 样式组合验证（含换行符、空格行、tier延续、DEFAULT对比） | 交互与边界 |
 | 9 | 雷达图 Tooltip 回归验证 | 特定图表类型 |
 | 10 | Combined Tip + Card 样式验证 | 特定图表类型 |
 | 11 | Multi-style Chart + Card 样式 Tooltip 验证 | 特定图表类型 |
 | 12 | DC Chart（Date Comparison）+ Card 样式 Tooltip 验证 | 特定图表类型 |
 | 13 | 非图表组件不显示 Tooltip Style 选项验证 | UI 专项 |
 | 14 | 本地化文本验证 | UI 专项 |
+| 15 | 文档一致性验证 | UI 专项 |
 
 ---
 
@@ -315,24 +319,34 @@
 
 ### Scenario 8：自定义模板 + Card 样式组合验证
 
-**Scenario Objective**：验证 Custom 内容格式下设置 CARD 样式时，多行自定义模板正确分层显示。
+**Scenario Objective**：验证 Custom 内容格式下 CARD 样式的模板解析行为，涵盖换行符分割、空行过滤、tier 计数器延续及静态/动态混合渲染。
 
-**Scenario Description**：`renderCard()` 在 customToolTip 存在时按换行符切分为多条 tier，此为 Custom 与 CARD 的交叉场景。
+**Scenario Description**：`renderCard()` 在 `customToolTip` 存在时按换行符切分为多条 tier；tier 计数器在 custom 行与后续自动数据字段之间共享，custom 行先消费计数器，数据字段从剩余 tier 继续递增并 cap 在 3。
 
-**Pre-condition**：Tooltip Content 设置为 Custom（自定义模板包含至少3行内容），同时 Tooltip Style 设置为 Card。
+**Pre-condition**：图表绑定至少 2 个数据字段（如 Sales、Region），Tooltip Content 设置为 Custom，Tooltip Style 设置为 Card。
 
 **Key Steps**：
-1. 在 Customize Tooltip 中选择 Custom 内容格式，输入包含换行的自定义模板（如3-5行）。
-2. 同时选择 Tooltip Style 为 Card，保存。
-3. 悬停数据点，触发 tooltip，查看分层渲染结果。
-4. 验证空行（empty line）是否被跳过（renderCard 中有 `if(line.isEmpty()) continue`）。
+
+*【基础分层 + 超限 cap】*
+1. 在 Custom 模板文本框中逐行输入 3-5 行静态内容（每行按回车换行，如依次输入 "Header"、"Sub"、"Detail"、"Extra"），保存后悬停数据点。
+2. 确认每非空行渲染为一个 tier div，第 4 行起均为 tt-tier-3，数据完整不丢失。
+
+*【空行过滤】*
+3. 模板输入 3 行内容，其中第 2 行直接按回车跳过（不输入任何字符），形如：第 1 行输入 "Line1"，第 2 行为空（按回车），第 3 行输入 "Line2"，保存后悬停数据点。
+4. 确认空行不产生 tier div，最终仅 2 个 tier div（Line1 → tt-tier-1，Line2 → tt-tier-2）。
+
+*【静态 + 动态占位符混合】*
+5. 输入含占位符的混合模板（如依次输入 "订单摘要"、"{0} Year"、"{1} Total"，各行按回车换行），保存后悬停数据点。
+6. 确认各行按顺序渲染为 tier div，占位符被正确替换为对应字段数据值，行顺序不变。
 
 **Expected Result**：
-- 自定义模板每非空行渲染为一个 tier div
-- 超过3行后后续行均为 tt-tier-3 样式
-- 空行不产生 tier div
+- 每非空行 → 一个 tier div，超过 3 行后均为 tt-tier-3，数据不丢失
+- 真空行不产生 tier div
+- 静态文本与占位符混合时行顺序不变，占位符正确替换为数据值
 
-**Risk Covered**：Custom 模板 + CARD 交叉场景、空行过滤逻辑
+**Risk Covered**：Custom 模板 + CARD 交叉场景、空行过滤逻辑、静态与动态占位符混合渲染
+
+🔴 **测试-分析**：Bug #75019
 
 ---
 
@@ -433,6 +447,8 @@
 
 **Risk Covered**：DC 对比 measure 在 cardSolo measures-first 排序下的 tier 分配、DCMergeCell 解包后在 CARD 模式下的正确渲染
 
+🔴 **测试-分析**：场景1规则明确后(看是按字段类型分组，还是位置)，再check dc
+
 ---
 
 ### Scenario 13：非图表组件不显示 Tooltip Style 选项验证
@@ -452,6 +468,7 @@
 
 **Risk Covered**：UI 条件渲染、非图表组件回归
 
+🔴 **测试-分析**：符合预期
 ---
 
 ### Scenario 14：本地化文本验证
@@ -467,3 +484,31 @@
 - 若翻译文件未更新，至少英文默认文本正确显示
 
 **Risk Covered**：本地化遗漏风险
+🔴 **测试-分析**：Bug #75021(没有本地化)
+
+---
+
+### Scenario 15：文档一致性验证
+
+**Scenario Objective**：验证新增的 Card Tooltip 功能在官方文档中有完整、准确的说明，确保用户能够了解并正确使用该功能。
+
+**Scenario Description**：Feature #74894 为图表组件新增了 Tooltip Style 选项（Default/Card），此功能需要在用户文档中进行说明。需验证 `AddTipsToChart.adoc` 文档包含对 Card 样式的完整说明，包括功能介绍、配置步骤和视觉差异对比。
+
+**Pre-condition**：访问官方文档系统，定位到 `AddTipsToChart.adoc`（或对应中文文档）。
+
+**Key Steps**：
+1. 打开文档 `modules/viewsheet/pages/AddTipsToChart.adoc`，定位到 Custom Tooltip 章节。
+2. 检查是否包含 Tooltip Style 选项的说明（Default/Card 单选按钮）。
+3. 检查是否描述了 Card 样式的视觉特点（tier-1/tier-2/tier-3 分层布局）。
+4. 检查是否包含 Default 与 Card 样式的对比说明。
+5. 检查是否包含配置步骤说明。
+6. 检查是否有相关截图或示例辅助说明。
+
+**Expected Result**：
+- 文档中明确说明 Tooltip Style 选项及其两个取值（Default/Card）
+- Card 样式的分层视觉特点有清晰描述
+- 配置步骤完整，用户可按文档完成设置
+- 包含 Default 与 Card 样式的行为差异说明
+
+**Risk Covered**：文档更新遗漏、功能说明不完整导致用户无法正确使用新功能
+🔴 **测试-分析**：merge后报文档的bug
