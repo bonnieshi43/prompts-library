@@ -18,9 +18,12 @@ community\web\projects\em\src\app\settings\schedule\add-parameter-dialog\add-par
 
 # Framework Constraints
 
-- Unit tests: **Angular Testing Library** only.
-- API mocks: **MSW (Mock Service Worker)** only.
-- Migrate any existing tests that violate the above.
+- Unit tests: use the repo's installed Testing Library adapter for the target framework.
+  - Angular scope: **Angular Testing Library**.
+  - React scope: **React Testing Library**.
+- API mocks: use **MSW (Mock Service Worker)** for HTTP/API behavior when the test crosses the network boundary.
+- Direct module mocks are allowed for non-HTTP boundaries (router/auth/hooks/WebSocket event emitters) or when the existing repo test stack has no MSW setup.
+- Do not migrate unrelated existing tests unless the user explicitly asks.
 - Every case must belong to a named **Group / Scenario** — no loose tests.
 - Each case gets a short English comment: `Scenario Objective`, `Risk Point/Contract`, `Why High Value` (add `🔁` for regression-sensitive cases).
 
@@ -66,6 +69,12 @@ Tag every rule:
 - **Pure fn / regex / boundary**: empty string, no extension, multi-dot filename, malformed input?
 - **Direct mutation**: `obj.field = x` on non-React objects expecting re-render?
 - **Render-phase side effects**: state/ref mutation inside `render` / `useMemo`? Amplified by Strict Mode.
+
+**A5 - External contract / async ownership quick check**:
+- If the component consumes route state, API wrappers, WebSocket/SSE/event-bus messages, or backend events, read the nearest producer/contract when available.
+- List ownership keys once: `conversationId`, `taskId`, `runtimeId`, `messageId`, `clientId`, `datasource`, etc.
+- If a request/event/load has an ownership key but the consumer does not check it before mutating UI state, mark it **Risk 3**.
+- For every async load that sets state after selection/props may change, require a stale-response guard; missing guard is **Risk 3**.
 
 **End of Stage A**: output all **[SA] / [SB] rules as one-liners**, then proceed.
 
