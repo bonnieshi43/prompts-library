@@ -8,7 +8,9 @@ You are a senior frontend test engineer. Goal: produce **few, high-value** unit 
 
 **Scope (required)**: one or more source paths to analyze (file or directory, relative to repo root, one per line). Read the files before proceeding if content is not already in context.
 
-**Optional**: existing test files, focus areas for this round, known bugs.
+**Reference test file (required)**: path to an existing Testing Library test in the same project. Used to determine output file naming convention (e.g. `.tl.spec.ts`), the test run command, and import style. Do not proceed without this.
+
+**Optional**: focus areas for this round, known bugs.
 
 ```
 community\web\projects\em\src\app\settings\schedule\add-parameter-dialog\add-parameter-dialog.component.ts
@@ -18,25 +20,44 @@ community\web\projects\em\src\app\settings\schedule\add-parameter-dialog\add-par
 
 # Framework Constraints
 
+- **Output file naming and test command are taken from the reference file supplied in Input.** Do not guess — if no reference file is provided, ask the user for one before proceeding.
 - Unit tests: use the repo's installed Testing Library adapter for the target framework.
   - Angular scope: **Angular Testing Library**.
   - React scope: **React Testing Library**.
 - API mocks: use **MSW (Mock Service Worker)** for HTTP/API behavior when the test crosses the network boundary.
 - Direct module mocks are allowed for non-HTTP boundaries (router/auth/hooks/WebSocket event emitters) or when the existing repo test stack has no MSW setup.
-- Do not migrate unrelated existing tests unless the user explicitly asks.
-- Every case must belong to a named **Group / Scenario** — no loose tests.
-- Each case gets a short English comment: `Scenario Objective`, `Risk Point/Contract`, `Why High Value` (add `🔁` for regression-sensitive cases).
+- Use this minimal skeleton for Angular TL tests:
 
 ```ts
-// Group 2 — viewsheet/bookmark behavior
-describe("... Group 2 ...", () => {
-  // 🔁 Regression-sensitive: Must clear old highlights when switching viewsheet
-  // Scenario Objective: Validate consistency of switching behavior
-  // Risk Point/Contract: Stale state may cause erroneous submissions
-  // Why High Value: High-frequency path, easily broken during refactoring
-  it("should clear highlight settings when switching viewsheet", async () => { ... });
+// *.component.tl.spec.ts  |  npm run test:tl
+
+import { it } from "@jest/globals"; // required for it.failing
+import { render, waitFor } from "@testing-library/angular";
+import { http, HttpResponse } from "msw";
+import { server } from "...../mocks/server";
+
+async function renderComponent() {
+   const result = await render(MyComponent, {
+      providers: [provideHttpClient(), { provide: FooDep, useValue: { fn: jest.fn() } }],
+      schemas: [NO_ERRORS_SCHEMA],
+   });
+   return result.fixture.componentInstance;
+}
+
+describe("Group 1 — someMethod", () => {
+   // 🔁 Regression-sensitive: <why>
+   it("should ...", async () => {
+      server.use(http.post("*/api/em/x", () => HttpResponse.json({ ok: true })));
+      const comp = await renderComponent();
+      comp.someMethod();
+      await waitFor(() => expect(comp.field).toBe(true));
+   });
+   it.failing("confirmed bug", async () => { /* same pattern */ });
 });
 ```
+- Do not migrate unrelated existing tests unless the user explicitly asks.
+- Every case must belong to a named **Group / Scenario** — no loose tests.
+- Each case gets a short comment above it (format shown in the skeleton above): `🔁 Regression-sensitive` is the most important marker; `Risk Point/Contract` and `Why High Value` are optional when already obvious.
 
 ---
 
@@ -54,8 +75,11 @@ Tag every rule:
 |-----|---------|
 | **[SA]** | What the code actually does |
 | **[SB]** | What the UI / props / comments promise users |
+| **[SC]** | What platform / Web / ARIA conventions implicitly promise (behaviors users expect without documentation: Ctrl+click multi-select, Shift+range-select, Enter to submit, Escape to cancel, Tab/arrow key navigation, focus management, touch gesture equivalents) |
 
 **[SA] ≠ [SB] = highest-priority bug candidate. Always call these out explicitly.**
+
+**[SC] violation = design defect with UX impact.** When a component handles selection, lists, dialogs, or forms, scan for missing platform conventions. A missing [SC] behavior is at minimum Risk 2; if it causes data loss or silent wrong submission it is Risk 3.
 
 **A1 — UI promises**: `accept`, `disabled`, `required`, state-dependent text. Does every code path honor the promise? Can `disabled` or submit guards be bypassed?
 
@@ -76,7 +100,7 @@ Tag every rule:
 - If a request/event/load has an ownership key but the consumer does not check it before mutating UI state, mark it **Risk 3**.
 - For every async load that sets state after selection/props may change, require a stale-response guard; missing guard is **Risk 3**.
 
-**End of Stage A**: output all **[SA] / [SB] rules as one-liners**, then proceed.
+**End of Stage A**: output all **[SA] / [SB] / [SC] rules as one-liners**, then proceed.
 
 ---
 
@@ -202,3 +226,7 @@ Asserting only `valid=false` cannot distinguish wrong-reason failures (right out
 
 - **Type**: Happy / Error / Boundary / Stress
 - **Why High Value**: required — link to a specific risk or broken contract
+
+## D5 — Verify
+
+Run the test command identified in Framework Constraints scoped to the new file. Fix any compilation or import errors before reporting done.
