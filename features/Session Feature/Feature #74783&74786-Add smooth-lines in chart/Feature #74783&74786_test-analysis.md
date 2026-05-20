@@ -105,9 +105,9 @@ GraphGenerator 设置元素属性
 | 已有图表保持直线（XML缺失→false） | ✅ 已实现 |
 | Network/Tree 隐藏开关 | ✅ 已实现 |
 | 仅 Algorithm.CIRCLE 生效 | ✅ 已实现 |
-| 仅 2-point edges 生效 | ⚠️ 待验证 |
+| 仅 2-point edges 生效 | ✅ 已实现 |
 
-🔴 **测试-分析**：符合预期
+🔴 **测试-分析**：符合预期。
 
 ### 算法差异对比
 
@@ -268,7 +268,7 @@ GraphGenerator 设置元素属性
 
 **Risk Covered**：状态转换一致性
 
-🔴 **测试-分析**：偶尔第一次没有save vs时，会有问题(ui上对着，但画出来的和ui不符合)，后续跟进
+🔴 **测试-分析**：偶尔第一次没有save vs时，会有问题(ui上对着，但画出来的和ui不符合)，不重现了
 
 ---
 
@@ -512,6 +512,28 @@ GraphGenerator 设置元素属性
 
 ---
 
+#### 场景15：Mobile Layout 曲线渲染
+
+**Scenario Objective**：验证 Mobile Layout 模式下曲线渲染正确性
+
+**Key Steps**：
+1. 创建启用 smoothLines 的 Area/Line 图表
+2. 创建启用 smoothLines 的 Circular 图表
+3. 切换到 Mobile Layout 模式
+4. 检查两类图表的曲线渲染效果
+5. 在 Mobile Layout 模式下导出为 PNG/PDF，检查导出效果
+
+**Expected Result**：
+- Mobile Layout 模式下 Area/Line 曲线渲染与正常模式一致，平滑无折角
+- Mobile Layout 模式下 Circular 曲线渲染与正常模式一致，向圆心弯曲
+- Mobile Layout 模式下导出的 PNG/PDF 曲线渲染正确，无展平或变形
+
+**Risk Covered**：Mobile Layout 兼容性
+
+🔴 **测试-分析**：符合预期
+
+---
+
 ### 验证点七：脚本与扩展性
 
 #### 场景13：Script 控制 smoothLines
@@ -530,7 +552,7 @@ GraphGenerator 设置元素属性
 
 **Risk Covered**：脚本兼容性
 
-🔴 **测试-分析**：Bug #74953(script没实现)
+🔴 **测试-分析**：Bug #74953(已修复)
 
 ---
 
