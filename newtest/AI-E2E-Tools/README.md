@@ -57,6 +57,25 @@ Claude resolves the rest via `e2e/dom-routes.json`.
 
 ---
 
+## Locator Priority
+
+Always use locators in this order (highest priority first):
+
+| Priority | Locator | Example |
+|----------|---------|---------|
+| 1 | `getByRole` | `page.getByRole('button', { name: 'Delete' })` |
+| 2 | `getByLabel` | `page.getByLabel('Username')` |
+| 3 | `getByTestId` | `page.getByTestId('delete-btn')` |
+| 4 | CSS selector | `page.locator('.delete-button')` |
+
+Use a lower-priority locator only when a higher one is not available in the HTML.
+
+When asking Claude to fix a locator, include this rule:
+
+> "按照 README 的 locator 优先级，在 `e2e/dom-routes.json` 里找 `/em/settings/content/repository` 的 `html_template`，修正 Delete 按钮的 locator"
+
+---
+
 ## dom-routes.json Format
 
 ```json
