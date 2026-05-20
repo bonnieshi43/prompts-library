@@ -1,353 +1,408 @@
-# Feature #74804 — Legend Symbol 圆角选项：结构化测试分析
-
----
-## 未覆盖内容
-1.和symbol一起使用 Bug #75028
-2.color和shape或者size merge，shape和size merge
-3.多个legend设置不同的值 Bug #75041
-4.dc
-5.select 区域Bug #75033
-## 一、需求分析（Requirement Analysis）
-
-### 1. 功能理解与范围
-
-**功能核心目标**：为图表图例（Legend）的符号色块（swatch）新增"圆角"渲染选项，使图例符号视觉上与图表其他圆角元素保持一致。
-
-**解决的业务问题**：用户在图表中启用圆角样式时，图例符号仍为直角矩形，造成视觉不一致；本需求补全该 UI 一致性缺口。
-
-**涉及模块**：
-- **UI 层**：Legend Format 对话框（General 面板新增 checkbox）
-- **业务逻辑层**：LegendSpec / LegendsDescriptor 属性读写、序列化/反序列化
-- **渲染层**：ColorLegendItem、TextureLegendItem、SizeLegendItem 绘制逻辑
-- **前端模型层**：Angular 组件模型与模板
-
-**功能类型**：UI 样式 + 数据持久化（配置序列化）
+# Feature #74804 测试分析报告：Rounded Legend Symbol
 
 ---
 
-### 2. 需求清晰度与完整性
+## 输入完整性说明
 
-**隐含假设未明确**：
-- 原始需求仅提及"rounded corners"，未说明圆角半径应为固定值还是可配置值。实现中硬编码为 `SYMBOL_CORNER_RADIUS_RATIO = 0.3`（即符号尺寸的 30%）。若产品侧有不同预期，此处存在歧义。
-- 需求未说明该选项是否应随"Round Corner"（图例边框圆角）联动，或完全独立控制。实现为独立控制，但需确认是否为预期。
-`🔴 **测试-分析**：硬编码满足需求
-
-**覆盖范围不明确**：
-- 原始需求未说明 Shape Legend、Line Legend 是否需要支持。实现中明确排除（toggle 隐藏）。此决策合理，但需在测试中验证这两类图例确实不显示该选项。
-- 未提及 Export（PDF/Excel/Image）场景下圆角是否应正确渲染。
-
-`🔴 **测试-分析**：line,step line,jump line,point，Area，Radar，filled radar 类型chart size legend不支持，tree,network,circular network,map shape不支持
-
-**非功能要求缺失**：
-- 无性能基准要求（抗锯齿 hint 对大批量图例项的渲染性能影响未量化）。
-- 无无障碍要求（checkbox 标签国际化已覆盖英文，其他语种未验证）。
+- **Feature 描述**：可访问，信息充分。
+- **PR diff**：可访问（PR #3622），内容完整，涵盖 13 个文件变更。
+- **知识库文档**：已提供 Legend 模块说明（Color/Size/Texture/Shape 分类及组合规则）。
 
 ---
 
-### 3. 测试风险识别
+## 第一部分：Requirement Summary（需求概要）
 
-| 风险 | 描述 |
-|------|------|
-| **旧配置兼容性** | `symbolRoundCorners` 在新图表中默认为 `true`，旧 XML 无此属性时强制解析为 `false`。若旧图表保存后重新打开，行为是否改变取决于解析路径，存在静默回归风险。 |
-| **默认值不一致** | `LegendsDescriptor` 中 `symbolRoundCorners` 默认为 `true`（新图表），但 `LegendSpec` 中默认为 `false`。两者在不同代码路径下可能产生不一致的渲染结果。 |
-| **SizeLegend 边界逻辑** | `SizeLegendItem` 中当条宽 `r < minRoundWidth` 时强制使用直角矩形，此逻辑仅对内部条形生效，外边框仍调用 `createSymbolRect(x, y, symbolSz, symbolSz)`（无 allowRound=false），存在内外渲染不一致风险。 |
-| **Export 渲染** | 向量图形导出路径（`GTool.isVectorGraphics`）中，`SizeLegendItem` 的抗锯齿关闭条件新增了 `!isSymbolRoundCorners()` 判断，但 `ColorLegendItem` 和 `TextureLegendItem` 未见对应处理，Export 场景下抗锯齿行为可能不统一。 |
+- **核心目标**：为图表图例的色块符号（swatch）支持圆角样式，与参考设计（portal-dark3.html）对齐。
+- **用户价值**：提升图表视觉美观度，满足现代扁平化/圆角设计风格需求；用户可按需开启圆角，而非强制使用直角矩形符号。
+- **Feature 类型**：UI / Rendering / Data（配置持久化）
 
 ---
 
-## 二、实现分析（Implementation Analysis）
+## 第二部分：Implementation Change（变更分析）
 
-### 1. 改动类型
+### 核心变更
 
-**类型**：Feature（新功能）
-
-**影响层级**：跨层
-
-| 层级 | 改动文件 |
+| 文件 | 变更内容 |
 |------|----------|
-| 渲染层 | `ColorLegendItem.java`、`TextureLegendItem.java`、`SizeLegendItem.java`、`LegendItem.java` |
-| 数据/配置层 | `LegendSpec.java`、`LegendsDescriptor.java` |
-| 业务逻辑层 | `GraphUtil.java`（LegendSpec 传播）、`LegendFormatDialogModel`（服务端 DTO） |
-| UI 层 | `LegendFormatGeneralPaneModel`、`legend-format-general-pane.component.html`、对应 model.ts |
-| 国际化 | `srinter.properties`（新增 `Round Symbol Corner` key） |
+| `LegendSpec.java` | 新增 `symbolRoundCorners` 字段（boolean，默认 false）；更新 equals/hashCode |
+| `LegendsDescriptor.java` | 新增 `symbolRoundCorners` 字段，**默认值为 true（新图表）**；XML 序列化/反序列化时，旧 XML 缺失该属性则强制置为 false（向后兼容） |
+| `LegendItem.java` | 新增 `createSymbolRect(x,y,w,h)` / `createSymbolRect(x,y,w,h,allowRound)`；圆角半径比例常量 `SYMBOL_CORNER_RADIUS_RATIO = 0.3`；通过 `allowRound` 参数控制是否允许圆角 |
+| `ColorLegendItem.java` | `paintSymbol` 改用 `createSymbolRect`；启用圆角时开启抗锯齿 |
+| `SizeLegendItem.java` | 内部 bar 填充改用 `createSymbolRect(..., allowRound)`；当 bar 宽度小于圆角弧度时强制直角；外框绘制 `draw()` 改用 `createSymbolRect` |
+| `TextureLegendItem.java` | `paintSymbol` 改用 `createSymbolRect`；启用圆角时开启抗锯齿 |
+| `GraphUtil.java` | `LegendSpec` 同步来自 `LegendsDescriptor` 的 `symbolRoundCorners` 值 |
+| `LegendFormatGeneralPaneController.java` | 读写 `symbolRoundCorners`；UI toggle 仅对 Color/Size/Texture 类型可见，Shape/Line 类型隐藏 |
+| `LegendFormatGeneralPaneModel.java` | 新增 `symbolRoundCorners` / `symbolRoundCornersVisible` 字段 |
+| `legend-format-general-pane.component.html` | 新增"Round Symbol Corner"复选框（条件渲染：仅 `symbolRoundCornersVisible=true` 时显示） |
+| `srinter.properties` | 新增 i18n key：`Round Symbol Corner` |
+| `legend-format-general-pane.spec.ts` | 新增两个单元测试：visible/hidden 状态下复选框是否正确渲染 |
+
+### 目标覆盖度
+
+| Feature 需求 | PR 实现 | 覆盖状态 |
+|-------------|---------|--------|
+| 图例符号支持圆角 | Color / Size / Texture 图例均已实现圆角渲染 | ✅ 覆盖 |
+| UI 可配置开关 | Legend Format 面板新增复选框 | ✅ 覆盖 |
+| Shape / Line 图例不适用 | Controller 层按 aestheticType 控制 visible | ✅ 覆盖 |
+| 配置持久化 | XML 序列化/反序列化均已处理 | ✅ 覆盖 |
+
+### 行为变化对比表
+
+| Before Behavior | After Behavior | Risk |
+|----------------|----------------|------|
+| 图例 swatch 固定为直角矩形 | Color/Size/Texture 图例 swatch 可渲染为圆角矩形 | 渲染变化影响导出/打印 |
+| `LegendsDescriptor.symbolRoundCorners` 不存在 | 新图表默认 `true`；旧图表（XML 中无此属性）强制为 `false` | 新旧图表行为不一致，需验证向后兼容性 |
+| `SizeLegendItem` 始终关闭抗锯齿（非矢量图时） | 圆角开启时，抗锯齿保持开启（包括非矢量图场景） | 可能影响渲染性能或像素精度 |
+| `SizeLegendItem` 内部 bar 宽度极窄时仍绘制圆角 | 极窄 bar 强制使用直角，避免渲染异常 | 边界条件处理逻辑正确性 |
+| Shape / Line 图例 Format 面板无 Symbol Round Corner 选项 | Shape / Line 图例隐藏该选项；Color/Size/Texture 显示 | UI 可见性逻辑是否完整 |
 
 ---
 
-### 2. 需求实现一致性
+## 第三部分：Risk Identification（风险识别）
 
-**实现完整性**：
-- Color / Texture / Size 三类图例符号已覆盖圆角渲染，符合需求核心目标。
-- UI checkbox 通过 `symbolRoundCornersVisible` 正确隐藏 Shape / Line 图例的该选项。
-- 序列化（XML 写出）和反序列化（XML 读入）均已实现，等号比较（`equals`/`hashCode`）已同步更新。
-- `GraphUtil.java` 中 `LegendSpec` 传播路径已同步新属性。
+**R1 \[Rendering\]** — Size Legend 圆角渲染边界问题：bar 宽度接近 `minRoundWidth` 临界值时，渲染切换（圆角↔直角）可能出现视觉抖动或不一致。
 
-**潜在实现不足**：
-- **默认值不一致**（见风险识别）：`LegendsDescriptor.symbolRoundCorners = true`（新建图表默认开启），`LegendSpec.symbolRoundCorners = false`（渲染对象默认关闭）。`GraphUtil` 中仅在特定路径（`if legends != null`）传播，其他渲染路径若未经过 GraphUtil，将使用 `LegendSpec` 的 `false` 默认值，导致新建图表第一次渲染时符号不显示圆角。
-- **国际化覆盖不完整**：仅更新了 `srinter.properties`（英文），其他语言资源文件（如中文、日文等）未在 diff 中可见，可能导致非英文环境显示 key 名而非翻译文本。
+**R2 \[Compatibility\]** — 新图表默认 `symbolRoundCorners=true`，旧图表强制为 `false`。已保存的 Viewsheet（含 `LegendsDescriptor` XML）在升级后若缺少该属性，是否能正确反序列化为 `false` 需回归验证；若 XML 中已有 `symbolRoundCorners="true"` 则不受影响。
 
-**隐式行为变化**：
-- `SizeLegendItem` 中抗锯齿关闭逻辑从"非向量图形时关闭"变更为"非向量图形 **且** 非圆角时关闭"。这意味着即使在非向量图形模式下，开启圆角后抗锯齿始终保持开启，可能改变非圆角模式的渲染细节（取决于之前抗锯齿是否影响边框绘制）。
+**R3 \[Cross-Module\]** — `GraphUtil.java` 负责将 `LegendsDescriptor` 同步到 `LegendSpec`，若该同步路径在特定场景（DC 图表、组合 Legend）下未触发，将导致配置丢失。
 
----
+**R4 \[Rendering / Export\]** — 圆角使用 `RoundRectangle2D` + 抗锯齿，在 PDF/Image 导出（矢量与非矢量路径）和打印预览中，圆角效果是否正确渲染。
 
-### 3. 关键实现风险
+**R5 \[UI Functional\]** — `symbolRoundCornersVisible` 仅由 `aestheticType` 控制（Color/Size/Texture 可见，其余隐藏）；组合 Legend（如 color+size、shape+color）打开 Format 对话框时，visible 逻辑是否正确。
 
-**风险 1：LegendsDescriptor 与 LegendSpec 默认值不对称**
-- **来源**：`LegendsDescriptor.symbolRoundCorners = true`（新建时默认开启），`LegendSpec.symbolRoundCorners = false`
-- **影响路径**：新建图表首次打开时，若 `GraphUtil` 传播路径未触发，渲染层读取 `LegendSpec` 默认值 `false`，符号不显示圆角，与 UI 勾选状态不符
-- **潜在后果**：新建图表 UI 显示已勾选，但图表符号实际为直角，用户困惑
+**R6 \[Data Consistency\]** — 修改一个图例的圆角设置是否会影响同一图表中其他图例（已知 Bug #75041）。
 
-**风险 2：旧版 XML 加载后默认强制为 false**
-- **来源**：`parseAttributes` 中：若 XML 无 `symbolRoundCorners` 属性，强制赋值 `false`（而非沿用字段默认 `true`）
-- **影响路径**：旧版存档图表加载后，`symbolRoundCorners = false`，符号显示直角（与旧版一致，属于兼容性设计），但若用户期望升级后自动享有圆角效果，需明确产品决策
-- **潜在后果**：旧图表加载后与新图表默认行为不一致，用户需手动勾选
-`🔴 **测试-分析**：导入是false
-**风险 3：SizeLegendItem 内外矩形圆角不一致**
-- **来源**：内部条形 `fill` 使用 `createSymbolRect(x0, y, r, symbolSz, r >= minRoundWidth)`，外边框 `draw` 使用 `createSymbolRect(x, y, symbolSz, symbolSz)`（无 `allowRound` 参数，默认 `true`）
-- **影响路径**：当条形较窄时，填充矩形为直角，但边框矩形为圆角，两者视觉不一致
-- **潜在后果**：Size Legend 在小尺寸条形时出现填充/边框形状错位的视觉 Bug
-`🔴 **测试-分析**：导出没有问题
-**风险 4：多语言资源缺失**
-- **来源**：仅 `srinter.properties`（英文）新增 `Round Symbol Corner` key
-- **影响路径**：使用非英文 locale 的用户打开 Legend Format 对话框
-- **潜在后果**：checkbox 标签显示原始 key 字符串而非翻译文本
-`🔴 **测试-分析**：本地化以及添加
----
+**R7 \[Localization\]** — 新增 UI 文本 `Round Symbol Corner` 仅有英文 key，其他语言本地化是否完整。
 
-## 三、测试设计（Test Design）
-
-### 3.1 风险驱动测试策略
-
-**核心风险**：
-1. 默认值不一致导致新建图表圆角状态与 UI 不同步
-2. 旧版 XML 加载兼容性（强制 false）
-3. Size Legend 小尺寸条形下填充与边框形状不一致
-4. 多语言资源缺失导致 UI 显示异常
-
-**是否改变默认行为**：是。新建图表 `symbolRoundCorners` 默认为 `true`（`LegendsDescriptor`），旧行为无此属性。
-
-**是否影响历史配置**：是。旧版 XML 加载后强制 `false`，需验证旧图表打开不出现异常渲染。
+**R8 \[Script\]** — Bug #75039 指出需要为 Round Symbol Corner 新增脚本支持，当前 PR 未包含，可能导致 Script 与 UI 不同步。
 
 ---
 
-### 3.2 必要测试类别
+## 第四部分：Test Design（测试策略设计）
 
-#### 功能验证（Functional）
+### 核心验证点
 
-**Why**：验证核心路径——勾选/取消勾选 checkbox 与图例符号渲染结果一致。
+- `symbolRoundCorners` 开关在 Color / Size / Texture 三类图例上的渲染效果正确性。
+- 新图表默认开启圆角（`true`）；旧图表升级后保持直角（`false`）。
+- Format 对话框中复选框的可见性逻辑（按 aestheticType 控制）。
+- 配置保存与重新加载后状态一致。
 
-**Scope**：Color Legend、Texture Legend、Size Legend 三类图例；Shape Legend、Line Legend 隐藏 checkbox。
+### 高风险路径
 
-**Validation Goal**：
-- 勾选"Round Symbol Corner"后，符号渲染为圆角矩形
-- 取消勾选后，符号渲染为直角矩形
-- Shape / Line 图例的 Legend Format 对话框中不显示该 checkbox
+- Size Legend 中 bar 极窄时的圆角/直角切换临界行为。
+- 组合 Legend（color+size、shape+color）的 Format 面板 visible 判断。
+- 已有 Viewsheet（旧 XML）在升级后加载时，`symbolRoundCorners` 的默认值行为。
+- 圆角开启时的 PDF / Image / 打印导出效果。
 
-**Browser**：需在 Chrome、Firefox、Safari（若支持）分别验证 checkbox UI 及图表渲染结果。
+### 涉及模块
 
-**Script**：
-- 验证是否可通过 Script 控制 `symbolRoundCorners` 属性（如 `chart.legendSpec.setSymbolRoundCorners(true)`）
-- Script 修改后图表是否即时重渲染
-- Script 设置值与 UI checkbox 状态是否同步
+- 图表图例（Color / Size / Texture / Shape / Line）
+- Legend Format 对话框（General Pane）
+- DC（Dashboard Composer）图表
+- 图表导出（PDF / Excel / Image）
+- 打印预览
+- Viewsheet 保存 / 加载（XML 序列化）
+
+### 专项检查
+
+**本地化**：`Round Symbol Corner` 为新增 UI 文本，需验证各支持语言的翻译完整性。
+
+**脚本兼容**（⚠️ 当前 PR 未实现，Bug #75039 跟踪）：
+- `symbolRoundCorners` 是否已暴露为可通过 Script 访问的属性。
+- Script 设置与 UI 复选框是否同步。
+- Script Auto-complete 是否包含该属性。
+`🔴 **测试-分析** Bug #75039
+
+**文档一致性**：新增 Legend 格式选项，需确认 Help 文档是否同步更新。
+
+`🔴 **测试-分析** 后面处理
+
+### Mobile 影响检查
+
+Legend Format 对话框新增 UI 控件（复选框），需在移动端/小屏幕下验证复选框布局是否正常显示，不出现溢出或遮挡。
+`🔴 **测试-分析** 结果正确
+
+### Print Layout / Export 影响检查
+
+涉及图例 swatch 的绘制逻辑（`paintSymbol` 方法、`RoundRectangle2D` 图形绘制），需验证：
+- PDF 导出：圆角符号渲染正确（矢量路径）。
+- Image 导出（PNG/JPEG）：圆角符号渲染正确，抗锯齿效果正常。
+- 打印预览：图例圆角效果与预览一致。
+- Excel 导出：图例若以图片方式嵌入，需验证圆角效果。
+
+---
+`🔴 **测试-分析** 结果正确
+
+## 第五部分：Key Test Scenarios（核心测试场景）
+
+---
+
+### Scenario 1：Color Legend 圆角开关基础功能
+
+**Scenario Objective**：验证 Color Legend 的 Round Symbol Corner 复选框可正确开启/关闭圆角渲染。
+
+**Scenario Description**：这是本次 Feature 的核心路径，需确认 UI 开关与渲染结果一致。
+
+**Pre-condition**：创建一个包含 Color Legend 的图表（如柱状图 + 颜色维度绑定）。
+
+**Key Steps**：
+1. 打开图表 Legend  对话框 → General Pane。
+2. 确认"Round Symbol Corner"复选框可见。
+3. 勾选复选框 → 点击 OK。
+4. 观察 Color Legend 中每个色块符号的形状。
+5. 再次打开对话框，取消勾选 → 点击 OK。
+6. 观察 Color Legend 符号是否恢复为直角。
+
+**Expected Result**：
+- 勾选后，色块符号呈圆角矩形，圆角弧度约为符号尺寸的 30%。
+- 取消勾选后，色块恢复为直角矩形。
+- 两次状态切换均正确反映在图表上。
+
+**Risk Covered**：R1（渲染正确性）、核心 UI 功能。
+
+---
+
+`🔴 **测试-分析** 结果正确
+
+### Scenario 2：Size Legend 圆角渲染（含极窄 bar 边界）
+
+**Scenario Objective**：验证 Size Legend 在不同 bar 宽度下，圆角/直角切换逻辑正确。
+
+**Scenario Description**：Size Legend 的内部 bar 在极小尺寸时应强制使用直角，避免圆角弧度超过宽度导致渲染异常（PR 中使用 `allowRound` 参数控制）。
+
+**Pre-condition**：创建包含 Size Legend 的图表，尺寸范围覆盖大小差异明显的数据。
+
+**Key Steps**：
+1. 开启 Round Symbol Corner。
+2. 观察 Size Legend 中各 bar 的渲染形状：较宽的 bar 应显示圆角，极窄的 bar 应显示直角。
+3. 调整 Symbol Size 至最小值，观察外框（`draw`）是否也正确使用圆角。
+
+**Expected Result**：
+- bar 宽度 ≥ `symbolSz * 0.3 * 2` 时，bar 呈圆角；小于该值时，bar 为直角。
+- Size Legend 外框随圆角设置同步变化。
+- 无渲染错位或视觉异常。
+
+**Risk Covered**：R1（Size Legend 边界渲染）。
+
+---
+`🔴 **测试-分析**：size设置到最小，显示合理
+
+### Scenario 3：Texture Legend 圆角渲染
+
+**Scenario Objective**：验证 Texture Legend 的纹理符号支持圆角裁剪。
+
+**Scenario Description**：Texture Legend 使用 `GTexture.paint()` 填充，需确认 `RectangularShape` 替换后纹理区域正确裁剪为圆角。
+
+**Pre-condition**：创建包含 Texture Legend 的图表（纹理 Frame 绑定）。
+
+**Key Steps**：
+1. 开启 Round Symbol Corner。
+2. 观察 Texture Legend 各符号是否呈圆角且纹理完整填充圆角区域内。
+3. 关闭圆角，确认恢复直角。
+
+**Expected Result**：纹理符号随设置正确切换圆角/直角，纹理无溢出或裁切错误。
+
+**Risk Covered**：R1（Texture Legend 渲染）。
+
+---
+`🔴 **测试-分析**：圆角显示合理
+
+### Scenario 4：Shape / Line Legend 不显示 Round Symbol Corner 选项
+
+**Scenario Objective**：验证 Shape Legend 和 Line Legend 的 Format 对话框中不出现圆角选项。
+
+**Scenario Description**：PR 中明确仅 Color/Size/Texture 显示该 toggle，Shape 和 Line 图例绘制的是符号/线条而非矩形 swatch，故应隐藏。
+
+**Pre-condition**：分别创建包含 Shape Legend 和 Line Legend 的图表。
+
+**Key Steps**：
+1. 打开 Shape Legend 的 Format 对话框 → General Pane。
+2. 确认无"Round Symbol Corner"复选框。
+3. 对 Line Legend 执行相同操作。
+
+**Expected Result**：Shape Legend 和 Line Legend 的中"Round Symbol Corner"不可见。
+
+**Risk Covered**：R5（UI 可见性逻辑）。
+
+---
+`🔴 **测试-分析**：测试shape和line相关的chart类型，"Round Symbol Corner"不可见。
+
+### Scenario 5：组合 Legend（Color + Size）Format 面板 visible 逻辑
+
+**Scenario Objective**：验证 color+size 组合 Legend 
+
+**Scenario Description**：组合 Legend 
+**Pre-condition**：创建 color+size 组合 Legend 的图表。
+
+**Key Steps**：
+1. 分别点击 Color 和 Size 图例项，打开对话框。
+2. 确认对话框均显示"Round Symbol Corner"复选框。
+
+**Expected Result**：Color 和 Size 类型对话框均显示复选框；不出现错误显示或隐藏。
+
+**Risk Covered**：R5（组合 Legend visible 逻辑）。
+
+---
+
+`🔴 **测试-分析**：应用正确
+
+### Scenario 6：修改一个图例的圆角设置不影响其他图例
+
+**Scenario Objective**：验证同一图表中多个 Legend 的 `symbolRoundCorners` 设置相互独立。
+
+**Scenario Description**：Bug #75041 已记录该问题：修改一个图例圆角时，其他图例也被修改。此场景为明确回归验证。
+
+**Pre-condition**：图表包含多个 Legend（如 Color Legend + Size Legend）。
+
+**Key Steps**：
+1. 仅对 Color Legend 开启 Round Symbol Corner，保存。
+2. 检查 Size Legend 的 symbolRoundCorners 状态。
+3. 反之，仅对 Size Legend 修改，检查 Color Legend 是否受影响。
+
+**Expected Result**：各 Legend 的圆角设置相互独立，修改一个不影响其他。
+
+**Risk Covered**：R6（数据一致性，跨 Legend 隔离）。
+
+---
+
+`🔴 **测试-分析**：Bug #75041
+
+### Scenario 7：旧 Viewsheet 升级后向后兼容性
+
+**Scenario Objective**：验证升级前保存的 Viewsheet（XML 中无 `symbolRoundCorners` 属性）在新版本加载后，图例符号保持直角（`false`）。
+
+**Scenario Description**：`LegendsDescriptor.parseAttributes` 中明确：旧 XML 缺失该属性时强制为 `false`；但 `LegendsDescriptor` 默认字段值为 `true`，需确认 parse 路径优先级正确。
+
+**Pre-condition**：使用旧版本保存含 Legend 的 Viewsheet，或手工构造不含 `symbolRoundCorners` 属性的 XML。
+
+**Key Steps**：
+1. 在新版本中加载旧 Viewsheet。
+2. 观察所有 Color/Size/Texture Legend 符号形状。
+3. 打开 Format 对话框，确认复选框状态为未勾选。
+
+**Expected Result**：旧 Viewsheet 加载后，图例符号为直角矩形，复选框未勾选。
+
+**Risk Covered**：R2（向后兼容性）。
+
+---
+`🔴 **测试-分析**：旧 Viewsheet 加载后是false
+
+### Scenario 8：新图表默认开启圆角
+
+**Scenario Objective**：验证新建图表的 Color/Size/Texture Legend 默认显示圆角符号。
+
+**Scenario Description**：`LegendsDescriptor.symbolRoundCorners` 字段默认值为 `true`（新图表路径），需确认新图表无需手动配置即显示圆角。
+
+**Pre-condition**：无。
+
+**Key Steps**：
+1. 新建图表并添加颜色维度绑定，生成 Color Legend。
+2. 不做任何 Format 设置，直接观察图例符号形状。
+3. 打开 Format 对话框，确认复选框默认勾选。
+
+**Expected Result**：新图表 Color/Size/Texture Legend 符号默认为圆角；复选框默认勾选。
+
+**Risk Covered**：R2（新旧图表默认行为差异）。
+
+---
+`🔴 **测试-分析**：默认值是true
+
+### Scenario 9：配置保存与重载后状态一致
+
+**Scenario Objective**：验证 `symbolRoundCorners` 配置在 Viewsheet 保存/重新打开后状态正确持久化。
+
+**Scenario Description**：新增字段涉及 XML 序列化与反序列化，需确认 round-trip 数据一致。
+
+**Pre-condition**：创建含 Color Legend 的图表。
+
+**Key Steps**：
+1. 关闭 Round Symbol Corner（`false`），保存 Viewsheet。
+2. 重新打开 Viewsheet，检查图例符号为直角，复选框未勾选。
+3. 开启 Round Symbol Corner（`true`），保存并重新打开，检查符号为圆角，复选框勾选。
+
+**Expected Result**：两种状态均正确持久化，重载后与保存时一致。
+
+**Risk Covered**：R3（配置持久化 / 数据一致性）。
+
+---
+
+`🔴 **测试-分析**：reload正确
+
+### Scenario 10：DC 图表圆角设置同步
+
+**Scenario Objective**：验证在 Dashboard Composer（DC）图表中，`symbolRoundCorners` 配置通过 `GraphUtil` 正确同步到 `LegendSpec`。
+
+**Scenario Description**：`GraphUtil.java` 负责同步 `LegendsDescriptor` → `LegendSpec`，DC 图表走此路径，需确认同步不丢失。已知 Bug #75029 指出 DC 中 display 切换时 symbol size 值会变，圆角设置可能有类似问题。
+
+**Pre-condition**：在 DC 中创建包含 Color Legend 的图表。
+
+**Key Steps**：
+1. 在 DC 图表中开启 Round Symbol Corner。
+2. 切换图表 display 类型（如从 Bar 切换到 Line 再切回）。
+3. 观察 Color Legend 圆角设置是否保持。
+4. 保存 Dashboard，重新打开，验证圆角状态。
+
+**Expected Result**：display 切换后圆角设置保持不变；保存后重载状态一致。
+
+**Risk Covered**：R3（Cross-Module，DC 同步路径）、R6。
+
+---
+`🔴 **测试-分析**：Bug #75029
+
+### Scenario 11：PDF / Image 导出圆角效果
+
+**Scenario Objective**：验证开启圆角的图例在 PDF 和 Image 导出格式中正确渲染。
+
+**Scenario Description**：`RoundRectangle2D` + 抗锯齿渲染路径在矢量（PDF）和非矢量（PNG/JPEG）场景下行为不同，需分别验证。
+
+**Pre-condition**：创建含 Color Legend（开启圆角）的图表。
+
+**Key Steps**：
+1. 导出为 PDF，打开查看 Color Legend 符号形状。
+2. 导出为 PNG 图片，查看 Color Legend 符号形状。
+3. 对比两种格式中圆角效果与页面显示是否一致。
+
+**Expected Result**：PDF 和 PNG 导出中，Color Legend 符号均显示圆角，与页面渲染效果一致，无锯齿或变形。
+
+**Risk Covered**：R4（Export / Print 渲染）。
+
+---
+
+`🔴 **测试-分析**：导出结果正确
+
+### Scenario 12：本地化验证
+
+**Scenario Objective**：验证"Round Symbol Corner"文本在各支持语言环境下正确显示。
+
+**Scenario Description**：`srinter.properties` 中新增英文 key，其他语言资源文件需同步，否则显示 key 名称而非翻译文本。
+
+**Pre-condition**：系统切换为非英文语言（如中文/日文/法文等）。
+
+**Key Steps**：
+1. 在非英文语言环境下打开 Color Legend 的 Format 对话框。
+2. 观察"Round Symbol Corner"区域的显示文本。
+
+**Expected Result**：显示对应语言的翻译文本，而非原始 key `Round Symbol Corner`。
+
+**Risk Covered**：R7（本地化）。
+
+---
+`🔴 **测试-分析**：已经添加本地化
+
+### Scenario 13：Script 兼容性（待 Bug #75039 修复后回归）
+
+**Scenario Objective**：验证 `symbolRoundCorners` 属性可通过 Script 读写，且与 UI 状态同步。
+
+**Scenario Description**：Bug #75039 指出需为 Round Symbol Corner 添加 Script 支持，当前 PR 未实现，本场景为修复后回归验证。
+
+**Pre-condition**：Bug #75039 已修复；图表含 Color Legend。
+
+**Key Steps**：
+1. 通过 Script 设置 `chart.legends.symbolRoundCorners = true`，观察图例符号是否变为圆角。
+2. 打开 Format 对话框，确认 UI 复选框同步勾选。
+3. 验证 Script 编辑器中 `symbolRoundCorners` 属性是否出现在 Auto-complete 候选列表。
+
+**Expected Result**：Script 与 UI 双向同步；Auto-complete 正确提示属性名称。
+
+**Risk Covered**：R8（Script 兼容性）。
 `🔴 **测试-分析**：Bug #75039
-
-**Locale**：
-- 切换至中文/日文等非英文 locale，验证 Legend Format 对话框中 checkbox 标签是否正常显示（不应显示原始 key `Round Symbol Corner`）
-
----
-`🔴 **测试-分析**：已经添加
-
-#### 回归测试（Regression）
-
-**Why**：改动涉及 `LegendItem.paintSymbol` 渲染基类逻辑，以及 `SizeLegendItem` 抗锯齿判断条件变更，可能影响未启用圆角时的现有渲染行为。
-
-**受影响模块**：Color Legend、Size Legend、Texture Legend 渲染路径
-
-**可能被破坏的行为**：
-- 未勾选圆角时，符号渲染与改动前一致（直角矩形、无多余抗锯齿）
-- `SizeLegendItem` 中抗锯齿逻辑变更不影响非圆角状态下的边框渲染质量
-- 已有图表打开后，图例符号样式无变化
-
----
-🔴 **测试-分析**：导出好的
-
-#### 边界与异常（Boundary）
-
-**Why**：`SizeLegendItem` 存在基于宽度阈值的条件圆角逻辑，需验证边界条件。
-
-**测试点**：
-- Size Legend 中极小尺寸符号（条宽 < `minRoundWidth`）：验证 fill 为直角、draw 的形状是否一致
-- Size Legend 中符号尺寸恰好等于 `minRoundWidth`（临界值）
-- 符号尺寸设置为最小值 / 最大值时的圆角渲染
-
----
-🔴 **测试-分析**：没有影响
-
-#### 兼容性测试（Compatibility）
-
-**Why**：旧版 XML 加载时 `symbolRoundCorners` 被强制设为 `false`，需验证旧图表不出现回归。
-
-**测试点**：
-- 加载不含 `symbolRoundCorners` 属性的旧版 XML 图表，图例符号应渲染为直角矩形
-- 保存含有 `symbolRoundCorners="true"` 的图表后重新加载，值应正确还原
-- 在旧版本创建的图表模板中验证兼容性
-
----
-🔴 **测试-分析**：旧版本导入默认false
-
-#### 性能测试（Performance）
-
-**Why**：圆角开启时强制设置 `RenderingHints.VALUE_ANTIALIAS_ON`，对包含大量图例项的图表可能造成渲染性能下降。
-
-**场景**：图表含 50+ 图例项时，开启圆角前后页面渲染帧率/响应时间对比。
-
----
-🔴 **测试-分析**：速度可以
-
-#### 自动化测试建议
-
-| 类型 | 覆盖内容 |
-|------|----------|
-| **Unit** | `LegendItem.createSymbolRect` 在 `allowRound=true/false` 及 `symbolRoundCorners=true/false` 下返回正确形状类型；`LegendsDescriptor.parseAttributes` 旧 XML 强制 false 逻辑 |
-| **Integration** | 完整 LegendSpec 传播路径（`LegendsDescriptor → GraphUtil → LegendSpec → LegendItem`）验证属性一致性 |
-| **E2E** | 打开 Legend Format 对话框 → 勾选 Round Symbol Corner → 确认 → 验证图表重渲染后符号为圆角 |
-| **Mock** | Unit 测试中 Mock `LegendSpec.isSymbolRoundCorners()` 返回值，隔离渲染逻辑测试 |
-
----
-
-## 四、关键测试场景（Key Test Scenarios）
-
----
-
-### Scenario 1：Color Legend 圆角符号正向验证
-
-**Scenario Objective**：验证勾选 Round Symbol Corner 后 Color Legend 符号正确渲染为圆角
-
-**Scenario Description**：在包含 Color Legend 的图表中，打开图例格式对话框，勾选 Round Symbol Corner，确认图例色块渲染为圆角矩形。
-
-**Key Steps**：
-1. 创建含 Color Legend 的图表
-2. 右键图例 → Format Legend → General 面板
-3. 确认"Round Symbol Corner" checkbox 存在且可见
-4. 勾选该 checkbox → 点击 OK
-5. 观察图例中每个颜色符号色块形状
-
-**Expected Result**：图例色块四角均呈圆角，圆角弧度约为符号尺寸的 30%；界面无报错。
-
-**Risk Covered**：核心功能路径验证；Color Legend 渲染正确性
-
----
-
-🔴 **测试-分析**：和期待一样
-
-### Scenario 2：新建图表默认圆角状态与 UI 一致性验证
-
-**Scenario Objective**：验证新建图表时，UI checkbox 勾选状态与实际图例符号渲染一致
-
-**Scenario Description**：新建图表后，不做任何配置，直接检查图例符号形状与 UI 默认状态。
-
-**Key Steps**：
-1. 新建图表，添加 Color Aesthetic → 生成 Color Legend
-2. 不打开任何对话框，观察图例符号形状
-3. 打开 Legend Format → General 面板，记录"Round Symbol Corner"的默认勾选状态
-4. 比较图例符号实际形状与 checkbox 状态是否一致
-
-**Expected Result**：若 checkbox 默认勾选，图例符号应为圆角；若默认不勾选，应为直角。两者状态一致，不出现 UI 显示勾选但渲染为直角的情况。
-
-**Risk Covered**：`LegendsDescriptor`（默认 true）与 `LegendSpec`（默认 false）默认值不一致风险
-
----
-🔴 **测试-分析**：和期待一样
-
-### Scenario 3：旧版 XML 图表加载兼容性
-
-**Scenario Objective**：验证不含 symbolRoundCorners 属性的旧版图表加载后图例符号渲染不回归
-
-**Scenario Description**：使用不含 `symbolRoundCorners` 属性的旧版保存文件加载图表，验证图例符号渲染为直角（兼容旧行为），且不报错。
-
-**Key Steps**：
-1. 准备一个旧版本创建的图表文件（XML 中无 `symbolRoundCorners` 属性）
-2. 在当前版本中加载该文件
-3. 观察图例符号渲染形状
-4. 打开 Legend Format 对话框，确认 Round Symbol Corner checkbox 状态为未勾选
-
-**Expected Result**：图例符号渲染为直角矩形（`symbolRoundCorners=false`）；checkbox 显示未勾选；无异常报错或控制台错误。
-
-**Risk Covered**：旧版 XML 反序列化兼容性；`parseAttributes` 强制 false 逻辑
-
-🔴 **测试-分析**：和期待一样
----
-
-### Scenario 4：Size Legend 小尺寸符号圆角一致性
-
-**Scenario Objective**：验证 Size Legend 在小尺寸条形下填充与边框形状一致
-
-**Scenario Description**：设置 Size Legend 符号尺寸较小，使内部条宽 `r < minRoundWidth`，开启圆角后验证 fill 和 draw 形状是否视觉一致。
-
-**Key Steps**：
-1. 创建含 Size Legend 的图表，将 Symbol Size 调至最小值
-2. 开启 Round Symbol Corner
-3. 放大观察 Size Legend 最细条形的填充形状与外边框形状
-
-**Expected Result**：最细条形的填充矩形与外边框形状保持一致（均为直角或均为圆角），不出现填充直角但边框圆角的错位现象。
-
-**Risk Covered**：`SizeLegendItem` 中内外矩形圆角不一致风险
-
----
-🔴 **测试-分析**：和期待一样
-
-### Scenario 5：Shape / Line Legend 不显示 Round Symbol Corner 选项
-
-**Scenario Objective**：验证 Shape Legend 和 Line Legend 的格式对话框中不显示 Round Symbol Corner checkbox
-
-**Scenario Description**：分别对 Shape Legend 和 Line Legend 打开 Legend Format 对话框，确认 General 面板中不存在 Round Symbol Corner 选项。
-
-**Key Steps**：
-1. 创建含 Shape Aesthetic 的图表，生成 Shape Legend
-2. 右键 Shape Legend → Format Legend → General 面板
-3. 确认无"Round Symbol Corner" checkbox
-4. 重复步骤 1-3，改为 Line Legend
-
-**Expected Result**：Shape Legend 和 Line Legend 的 General 面板中均不存在"Round Symbol Corner" checkbox；其他选项正常显示。
-
-**Risk Covered**：`symbolRoundCornersVisible` 控制逻辑；非矩形图例不应显示此选项
-
----
-🔴 **测试-分析**：line和point类型不显示
-
-### Scenario 6：非英文 Locale 下 checkbox 标签显示验证
-
-**Scenario Objective**：验证非英文环境下"Round Symbol Corner"标签正常本地化，不显示原始 key
-
-**Scenario Description**：将系统 locale 切换至中文（或其他已有本地化资源的语言），打开 Legend Format 对话框，检查 Round Symbol Corner 标签显示。
-
-**Key Steps**：
-1. 将应用切换至中文 locale
-2. 创建含 Color Legend 的图表
-3. 打开 Legend Format → General 面板
-4. 观察 Round Symbol Corner checkbox 的标签文本
-
-**Expected Result**：标签应显示对应语言的翻译文本，而非英文原文或 key 字符串 `Round Symbol Corner`。
-
-**Risk Covered**：多语言资源文件未更新导致的 i18n 显示异常
-
----
-🔴 **测试-分析**：加了本地化
-
-### Scenario 7：Export 场景下圆角渲染验证
-
-**Scenario Objective**：验证 PDF / 图片导出时，图例符号圆角样式正确渲染
-
-**Scenario Description**：开启 Round Symbol Corner 后，将图表导出为 PDF 和 PNG，验证导出文件中图例符号为圆角。
-
-**Key Steps**：
-1. 创建含 Color Legend 的图表，开启 Round Symbol Corner
-2. 将图表导出为 PDF
-3. 将图表导出为 PNG
-4. 检查导出文件中图例符号形状
-
-**Expected Result**：PDF 和 PNG 中图例符号均显示为圆角矩形；导出过程无错误。
-
-**Risk Covered**：向量图形导出路径（`GTool.isVectorGraphics`）下抗锯齿与圆角渲染一致性
-
-🔴 **测试-分析**：导出没问题
