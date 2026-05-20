@@ -192,7 +192,11 @@ type: feature-analysis
 若涉及前端交互，必须考虑：
 
 - Browser
-- Mobile
+- **Mobile**：若涉及响应式布局、触摸交互、工具栏折叠、弹窗/面板尺寸、图表手势、导航路由、对话框新增 UI 控件，需在移动端/小屏幕下验证。
+
+若涉及图表渲染逻辑（paint 方法、图形绘制、视觉属性如颜色/边框/圆角/尺寸）、布局坐标计算、CSS 样式变更、导出相关代码（Exporter / CoordinateHelper），必须考虑：
+
+- **Print Layout / Export**：验证打印预览与各格式导出（PDF / Excel / Image）效果是否正确。
 
 若新增 UI 元素，还需验证：
 
