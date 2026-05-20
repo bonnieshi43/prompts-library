@@ -104,7 +104,8 @@ Type: stylebi-feature-test-analysis
     - UI与Script是否同步
     - 若新增加script，Auto-complete 是否工作
   - **文档一致性**：若功能新增或变更，需验证文档/API的描述；若新增功能性 Dialog / 全新页面 / 新的 UI 功能入口，需要验证 Help 文档是否同步更新
-- **Mobile影响检查**:若设计响应式布局、触摸交互、工具栏折叠、弹窗尺寸、图表手势、导航路由，需要测试。
+- **Mobile影响检查**：若涉及响应式布局、触摸交互、工具栏折叠、弹窗/面板尺寸、图表手势、导航路由、对话框新增 UI 控件，需要在移动端/小屏幕下验证。
+- **Print Layout / Export影响检查**：若涉及图表渲染逻辑（paint 方法、图形绘制、视觉属性如颜色/边框/圆角/尺寸）、布局坐标计算、CSS 样式变更、导出相关代码（Exporter / CoordinateHelper），需要验证打印预览与各格式导出（PDF / Excel / Image）效果是否正确。
 
 ---
 
