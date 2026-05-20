@@ -7,7 +7,7 @@
 
 - PR diff：完整（17个文件，9页）
 - Feature 描述：完整
-- Knowledge 知识库文档：未提供，分析基于 PR diff 与 Feature 需求
+- Knowledge 知识库文档：I:\inetsoft\stylebi-docs\InetSoftUserDocumentation\modules\viewsheet\pages
 
 ---
 
@@ -74,17 +74,17 @@
 
 2. **[高 / Rendering] `.widget__default-tooltip` CSS 类未定义**：`chart-area.component.ts` 非 CARD 时设置 `tooltipCSS = "widget__default-tooltip"`，但 `_directives.scss` 仅新增 `.widget__card-tooltip`，未见 `.widget__default-tooltip` 存在。若该类不存在，DEFAULT 模式 tooltip 样式可能发生回归。
 
-3. **[中 / Functional] 雷达图 tooltip 条件修改影响 DEFAULT 模式**：`cols[k] == dims` 的修改在 DEFAULT 和 CARD 模式下均生效，属于附带的行为变更，需验证雷达图在 DEFAULT 模式下 tooltip 的正确性。
+3. **[中 / Rendering] tooltipCSS 仅在 tooltipString 变化时更新**：CSS 类切换逻辑嵌入在 `if(tooltipString != this.tooltipString)` 块内，若 Tooltip Style 发生变化但 tooltip 内容未变，CSS 类不会立即刷新，导致样式无法实时生效。
 
-4. **[中 / Rendering] tooltipCSS 仅在 tooltipString 变化时更新**：CSS 类切换逻辑嵌入在 `if(tooltipString != this.tooltipString)` 块内，若 Tooltip Style 发生变化但 tooltip 内容未变，CSS 类不会立即刷新，导致样式无法实时生效。
+4. **[中 / Functional] Custom 模板 + CARD 样式**：自定义模板按换行符切分为多条 tier，超过3条后，第4条起的内容均渲染为 tt-tier-3 样式，导致数据视觉上无差异，可能引发误解。
 
-5. **[中 / Functional] Custom 模板 + CARD 样式**：自定义模板按换行符切分为多条 tier，超过3条后，第4条起的内容均渲染为 tt-tier-3 样式，导致数据视觉上无差异，可能引发误解。
+5. **[中 / Functional] Combined Tip + CARD 样式**：`renderCard()` 依赖 `(-1, -1)` separator 跳过逻辑，需验证多图表 combined tooltip 在 CARD 模式下的正确分隔与渲染。
 
-6. **[中 / Functional] Combined Tip + CARD 样式**：`renderCard()` 依赖 `(-1, -1)` separator 跳过逻辑，需验证多图表 combined tooltip 在 CARD 模式下的正确分隔与渲染。
+6. **[中 / Functional] Multi-style Chart + CARD 样式**：Multi-style 图表因代码限制无法开启 Combined Tooltip，CARD 模式下始终进入 `cardSolo = true` 分支（measures-first）。Multi-style 每个 series 有独立的 dims/measures 配置，不同 series 数据点悬停时 tier-1 内容可能不一致，存在字段混入或排序混乱风险。
 
-7. **[中 / Functional] Multi-style Chart + CARD 样式**：Multi-style 图表因代码限制无法开启 Combined Tooltip，CARD 模式下始终进入 `cardSolo = true` 分支（measures-first）。Multi-style 每个 series 有独立的 dims/measures 配置，不同 series 数据点悬停时 tier-1 内容可能不一致，存在字段混入或排序混乱风险。
+7. **[中 / Functional] DC Chart + CARD 样式**：Date Comparison 图表的对比字段（Current、Prior、Change%）均被归入 `measures` 数组，`cardSolo = true` 时全部提升至 tier-1 优先级。多个对比 measure 并列在 tier-1 后视觉层级是否合理存在不确定性；同时 `DCMergeCell` 数据需经 `getOriginalData()` 解包，需确认解包值在 CARD 模式下正确渲染。
 
-8. **[中 / Functional] DC Chart + CARD 样式**：Date Comparison 图表的对比字段（Current、Prior、Change%）均被归入 `measures` 数组，`cardSolo = true` 时全部提升至 tier-1 优先级。多个对比 measure 并列在 tier-1 后视觉层级是否合理存在不确定性；同时 `DCMergeCell` 数据需经 `getOriginalData()` 解包，需确认解包值在 CARD 模式下正确渲染。
+8. **[中 / Functional] 特殊图表类型 CARD 样式行为**：部分图表类型（雷达图、Candle/Stock、Gantt、Map、Relation/Network、Box Plot、Word Cloud）有特殊的字段处理逻辑。雷达图的跳过条件从 `k == 0` 改为 `cols[k] == dims`，在 DEFAULT 和 CARD 模式下均生效；其他图表可能出现字段优先级语义偏差（如收盘价不在最突出位置、Task 名称被弱化、Word Cloud 词频在 tier-1 而词本身在 tier-2 等），需验证各特殊图表的 tier 分配正确性。
 
 9. **[低 / Compatibility] 旧服务器版本兼容**：新版 dashboard 在旧服务器上打开时，`tooltipStyle` XML 属性被忽略，图表回退 DEFAULT 样式，已通过注释说明但需人工验证。
 
@@ -101,7 +101,7 @@
 - DEFAULT 样式 tooltip 回归（扁平格式、列顺序不变、样式不变）
 - 新建图表的默认 Tooltip Style（CARD 还是 DEFAULT）
 - Tooltip Style 设置的持久化、保存与重新加载
-- 雷达图 tooltip 在 DEFAULT 和 CARD 模式下的正确性
+- 特殊图表类型（雷达图、Candle/Stock、Gantt、Map、Relation/Network、Box Plot、Word Cloud等）在 CARD 模式下的 tier 分配正确性
 - 官方文档是否同步更新 Card Tooltip 功能说明
 
 **高风险路径**：
@@ -112,8 +112,9 @@
 - DEFAULT 模式下 tooltip 的 CSS 类是否正常
 - Multi-style 图表（Bar+Line 等混合类型）各 series 数据点悬停时 tier 排序一致性
 - DC 图表对比字段（Current/Prior/Change%）在 CARD 模式下的 tier 分配与数值正确性
+- 特殊图表类型的字段优先级语义（如 Candle/Stock 的收盘价、Gantt 的 Task 名称）
 
-**涉及模块**：Chart 渲染、Tooltip Customize Dialog、Dashboard Viewer/Editor、Binding Editor、Date Comparison（DC）、Multi-style Chart
+**涉及模块**：Chart 渲染、Tooltip Customize Dialog、Dashboard Viewer/Editor、Binding Editor、Date Comparison（DC）、Multi-style Chart、特殊图表类型（雷达图、Candle/Stock、Gantt、Map、Relation/Network、Box Plot、Word Cloud）
 
 **专项检查**：
 - **本地化**：新增 `_#(Tooltip Style)`、`_#(Default)`、`_#(Card)` i18n key，需验证各语言环境下文本正确。
@@ -121,56 +122,73 @@
 - **文档一致性**：Customize Tooltip 对话框新增选项，需验证 Help 文档是否同步更新。
 - **Mobile 影响**：`max-width: 40vw / max-height: 40vh / overflow: hidden` 在窄屏设备下需验证内容是否被裁剪。
 
+🔴 **测试-分析**：是否支持脚本（Bug #75067），其他都已验证
+
 ---
 
 ## 第五部分：Key Test Scenarios（核心测试场景）
 
+### 场景分组说明：
+- **基础功能**（1-8）：所有图表通用的核心功能验证
+- **柱状图专项**（9-11）：堆叠/非堆叠、Combined/非 Combined 场景
+- **特殊图表类型**（12-23）：雷达图、Multi-style、DC、T&C 等特殊图表
+- **UI 专项**（24-26）：非图表组件、本地化、文档验证
+
 | # | 场景 | 分组 |
 |---|---|---|
-| 1 | Card 样式 Tooltip 基础渲染验证 | 核心功能 |
-| 2 | DEFAULT 样式 Tooltip 回归验证 | 核心功能 |
+| 1 | Card 样式 Tooltip 基础渲染验证 | 基础功能 |
+| 2 | DEFAULT 样式 Tooltip 回归验证 | 基础功能 |
 | 3 | 新建图表默认 Tooltip Style 验证 | 数据一致性 |
 | 4 | Tooltip Style 持久化与重新加载验证 | 数据一致性 |
 | 5 | 旧版 Dashboard 兼容性验证 | 数据一致性 |
 | 6 | Tooltip Style 切换后样式实时更新验证 | 交互与边界 |
 | 7 | 超过3条 Tooltip 数据的 Tier 渲染验证 | 交互与边界 |
 | 8 | 自定义模板 + Card 样式组合验证（含换行符、空格行、tier延续、DEFAULT对比） | 交互与边界 |
-| 9 | 雷达图 Tooltip 回归验证 | 特定图表类型 |
-| 10 | Combined Tip + Card 样式验证 | 特定图表类型 |
-| 11 | Multi-style Chart + Card 样式 Tooltip 验证 | 特定图表类型 |
-| 12 | DC Chart（Date Comparison）+ Card 样式 Tooltip 验证 | 特定图表类型 |
-| 13 | 非图表组件不显示 Tooltip Style 选项验证 | UI 专项 |
-| 14 | 本地化文本验证 | UI 专项 |
-| 15 | 文档一致性验证 | UI 专项 |
+| 9 | 堆叠柱状图 + Combined + Card（完整验证） | 柱状图专项 |
+| 10 | 堆叠柱状图 + 非 Combined + Card（对比验证） | 柱状图专项 |
+| 11 | 普通柱状图 + Combined + Card（边界验证） | 柱状图专项 |
+| 12 | 雷达图 Tooltip 回归验证 | 特殊图表类型 |
+| 13 | Multi-style Chart + Card 样式 Tooltip 验证 | 特殊图表类型 |
+| 14 | DC Chart（Date Comparison）+ Card 样式 Tooltip 验证 | 特殊图表类型 |
+| 15 | T&C（Trend & Comparison）+ Card 样式 Tooltip 验证 | 特殊图表类型 |
+| 16 | Candle / Stock Chart + Card 样式验证 | 特殊图表类型 |
+| 17 | Gantt Chart + Card 样式验证 | 特殊图表类型 |
+| 18 | Map Chart + Card 样式验证 | 特殊图表类型 |
+| 19 | Relation / Network Chart + Card 样式验证 | 特殊图表类型 |
+| 20 | Box Plot + Card 样式验证 | 特殊图表类型 |
+| 21 | Word Cloud + Card 样式验证 | 特殊图表类型 |
+| 22 | Treemap + Card 样式验证 | 特殊图表类型 |
+| 23 | Mekko Chart + Card 样式验证 | 特殊图表类型 |
+| 24 | 非图表组件不显示 Tooltip Style 选项验证 | UI 专项 |
+| 25 | 本地化文本验证 | UI 专项 |
+| 26 | 文档一致性验证 | UI 专项 |
 
 ---
 
 ### Scenario 1：Card 样式 Tooltip 基础渲染验证
 
-**Scenario Objective**：验证 CARD 模式下 tooltip 正确生成 tt-tier 分层结构，Measure 值显示在最大字体层，同类型字段共享相同 tier。
+**Objective**：验证 CARD 模式下 tooltip 按位置顺序分配 tier，Measure 优先显示在最大字体层。
 
-**Scenario Description**：这是本次 PR 的核心功能验证，确保 `renderCard()` 方法的 tier 生成逻辑及 CSS 样式正确。
+**Description**：Card 样式通过 tier 级联（tier-1 > tier-2 > tier-3）建立视觉优先级，字段按顺序分配并 cap 在 3。
 
-**Pre-condition**：已有一个含 Measure + 多个 Dimension 的图表（如柱状图），X-axis 绑定至少 2 个 Dimension（如 Year、Employee），Y-axis 绑定 1 个 Measure，将 Tooltip Style 设置为 Card。
+**Pre-condition**：柱状图，X-axis 绑定 2 个 Dimension（Year、Employee），Y-axis 绑定 1 个 Measure，Tooltip Style = Card。
 
-**Key Steps**：
-1. 打开 Dashboard，选择含多个 Dimension 和 Measure 的图表。
-2. 进入 Chart Properties → Customize Tooltip，选择 "Card" 样式，保存。
-3. 鼠标悬停在图表数据点上，触发 tooltip 显示。
-4. 检查 tooltip 的 HTML 结构（浏览器开发工具）。
-5. 观察 tooltip 视觉呈现：圆角、居中对齐、字体层级。
+**Steps**：
+1. 打开图表，进入 Customize Tooltip，选择 Card 样式，保存。
+2. 悬停数据点，检查 tooltip 的 HTML 结构和视觉效果。
+3. 在 Customize Tooltip 中调整字段顺序（如 Employee 移至 Year 前），保存后再次验证。
 
 **Expected Result**：
-- tooltip 渲染为包含 `.tt-tier-1`、`.tt-tier-2`、`.tt-tier-3` 的 div 结构
-- **所有 Measure** → `.tt-tier-1`（16px / font-weight 600）
-- **所有 Dimension** → `.tt-tier-2`（13px）
-- **所有 Others** → `.tt-tier-3`（11px）
-- 同类型字段（如多个 Dimension）应共享相同 tier 和视觉权重，不依赖绑定顺序
-- 整体外观：圆角8px、居中文字、border + box-shadow
+- tooltip 渲染为 `.tt-tier-1`（16px/600）、`.tt-tier-2`（13px）、`.tt-tier-3`（11px）结构
+- cardSolo 模式列顺序 `{measures, dims, others}`，Measure 天然占据 tier-1
+- 示例：Sum(Order Number)→tier-1，Year→tier-2，Employee→tier-3（同类型字段视觉权重不同是预期行为）
+- 用户调整字段顺序后，tier 随之改变
+- 外观：圆角8px、居中、border+box-shadow
 
-**Risk Covered**：Card 样式核心渲染、Measure 提升至首行、同类型字段一致的 tier 分配
+**Risk Covered**：Card 样式核心渲染、位置顺序 tier 分配、字段重排序影响、tier-3 cap 机制
 
-🔴 **测试-分析**：关联 Bug #75000 - 维度字段 tier 分配应基于语义类型而非绑定顺序
+✅ **测试-分析**：Bug #75000 已被开发 Reject。
+**Tier 分配规则：按位置顺序，非字段类型**。设计意图：保持视觉优先级、兼容多 Measure 图表、用户可通过字段排序控制、支持自定义模板。
 
 ---
 
@@ -293,27 +311,24 @@
 
 ### Scenario 7：超过3条 Tooltip 数据的 Tier 渲染验证
 
-**Scenario Objective**：验证当 tooltip 数据超过3条时，后续数据均渲染为 tt-tier-3 样式，且数据完整显示（不截断）。
+**Objective**：验证超过3条数据时，第4条及后续字段 cap 在 tier-3，数据完整不丢失。
 
-**Scenario Description**：`appendTier()` 使用 `Math.min(tier, 3)` 将第4条及后续内容均映射为 tier-3，需确认数据不被丢弃，仅样式统一。此场景聚焦 **tier cap 边界逻辑**，与 Scenario 1 的基础渲染验证互补。
+**Description**：`appendTier()` 使用 `Math.min(tier, 3)` 限制最大层级，确保超过3条时样式统一但数据不丢失。
 
-**Pre-condition**：图表含4个以上字段（如 1 Measure + 3 Dimension），Tooltip Style 设置为 Card。
+**Pre-condition**：图表含4个以上字段（如 1 Measure + 3 Dimension），Tooltip Style = Card。
 
-**Key Steps**：
-1. 悬停图表数据点，触发 tooltip。
-2. 检查 tooltip 中是否包含所有字段数据。
-3. 确认第3条及之后所有数据均使用 `tt-tier-3` CSS 类。
-4. 确认无数据被截断或丢失。
+**Steps**：
+1. 悬停数据点触发 tooltip。
+2. 检查所有字段数据完整显示，第3条及以后均为 tt-tier-3 样式。
 
 **Expected Result**：
-- 所有 Measure → tt-tier-1（16px）
-- 所有 Dimension → tt-tier-2（13px）
-- 所有 Others → tt-tier-3（11px）
-- 超过3条后仅样式统一为 tier-3，数据完整显示不丢失
+- 第1个字段 → tt-tier-1（16px），第2个 → tt-tier-2（13px），第3个及以后 → tt-tier-3（11px）
+- 示例：1 Measure + 3 Dimension → Measure→tier-1，Dim1→tier-2，Dim2/Dim3→tier-3（均 cap 在 tier-3）
+- 所有数据完整显示，无截断丢失
 
 **Risk Covered**：tier cap 边界逻辑、多字段数据完整性
 
-🔴 **测试-分析**：需在 Scenario 1 的 bug fix 验证通过后执行
+🔴 **测试-分析**：符合预期
 
 ---
 
@@ -331,26 +346,150 @@
 1. 在 Custom 模板文本框中逐行输入 3-5 行静态内容（每行按回车换行，如依次输入 "Header"、"Sub"、"Detail"、"Extra"），保存后悬停数据点。
 2. 确认每非空行渲染为一个 tier div，第 4 行起均为 tt-tier-3，数据完整不丢失。
 
-*【空行过滤】*
-3. 模板输入 3 行内容，其中第 2 行直接按回车跳过（不输入任何字符），形如：第 1 行输入 "Line1"，第 2 行为空（按回车），第 3 行输入 "Line2"，保存后悬停数据点。
-4. 确认空行不产生 tier div，最终仅 2 个 tier div（Line1 → tt-tier-1，Line2 → tt-tier-2）。
+*【空行与空白字符行过滤】*
+3. 模板输入 3 行内容：第 1 行输入 "Line1"，第 2 行为空（直接回车），第 3 行输入 "Line2"，保存后悬停数据点。
+4. 确认空行被过滤，仅显示 2 个 tier div（Line1 → tt-tier-1，Line2 → tt-tier-2）。
+5. 修改模板第 2 行为纯空白字符（空格或制表符），保存后再次悬停数据点。
+6. 确认空白字符行同样被过滤，仍显示 2 个 tier div，无多余空行产生。
 
 *【静态 + 动态占位符混合】*
-5. 输入含占位符的混合模板（如依次输入 "订单摘要"、"{0} Year"、"{1} Total"，各行按回车换行），保存后悬停数据点。
-6. 确认各行按顺序渲染为 tier div，占位符被正确替换为对应字段数据值，行顺序不变。
+7. 输入含占位符的混合模板（如依次输入 "订单摘要"、"{0} Year"、"{1} Total"，各行按回车换行），保存后悬停数据点。
+8. 确认各行按顺序渲染为 tier div，占位符被正确替换为对应字段数据值，行顺序不变。
 
 **Expected Result**：
 - 每非空行 → 一个 tier div，超过 3 行后均为 tt-tier-3，数据不丢失
 - 真空行不产生 tier div
+- 纯空白字符行（仅含空格、制表符等）不产生 tier div
 - 静态文本与占位符混合时行顺序不变，占位符正确替换为数据值
 
 **Risk Covered**：Custom 模板 + CARD 交叉场景、空行过滤逻辑、静态与动态占位符混合渲染
 
-🔴 **测试-分析**：Bug #75019
+✅ **测试-分析**：Bug #75019 已修复 - `line.isEmpty()` → `line.isBlank()`，正确跳过空白字符行
 
 ---
 
-### Scenario 9：雷达图 Tooltip 回归验证
+### Scenario 9：堆叠柱状图 + Combined + Card（完整验证）
+
+**Scenario Objective**：验证堆叠柱状图在 Combined Tooltip 开启时，Card 样式能正确将悬停系列的 Measure 置于最突出位置，共享 X 轴维度作为副标题显示，Stack Total 以最大字号突出显示。
+
+**Pre-condition**：
+- 堆叠柱状图配置：
+  - **X 轴**：绑定 Dimension（如 `Quarter`）
+  - **Y 轴**：绑定 **2 个 Measure**（如 `Sum(Sales)`、`Sum(Profit)`）
+  - **颜色分组**：绑定 Dimension（如 `Category`，至少 2 个值：Business、Personal）
+- Customize Tooltip：Combined Tooltip = 开启，Tooltip Style = Card
+
+**Steps**：
+1. 打开 Customize Tooltip 对话框，确认 Combined Tooltip 已开启，Tooltip Style 选 Card，保存。
+2. 悬停某个堆叠柱的 **第一个 Measure 数据块**（如 Q3/Business 的 Sales 块），触发 combined tooltip。
+3. 观察 tooltip 整体布局和各行字号：
+   - 最顶部最大字体行显示的是什么？
+   - 紧接其下的小字行显示的是什么？
+   - 后续其他 Measure 和 Category 如何显示？
+   - 底部 Stack Total 的字号是否最大？
+
+**Expected Result**：
+- **第一行（tier-1，16px）**：悬停的 Measure 值，如 `Sum(Sales): 73.3K`
+- **第二行（tier-2.subtitle，12px）**：共享 X 轴维度，如 `Quarter: Q3`，仅出现一次
+- **第三行（tier-2，13px）**：另一个 Measure 的值，如 `Sum(Profit): 15.2K`
+- **第四行（tier-3，11px）**：颜色分组字段，如 `Category: Business`
+- **后续行（tier-2/tier-3）**：其他 Category 的 Sales 和 Profit 数据
+- **最后一行（tier-1.stack-total，20px）**：Stack Total，如 `Total: 233.2K`，字体最大
+
+**Tier 分配规则验证**：
+| 内容 | Tier | 字号 | 验证点 |
+|------|------|------|--------|
+| 悬停的 Measure | `.tt-tier-1` | 16px | 最突出，位于顶部 |
+| 共享 X-dimension | `.tt-tier-2.tt-subtitle` | 12px | 副标题样式，仅显示一次 |
+| 其他系列的 Measure | `.tt-tier-2` | 13px | 同位置其他 Measure，次突出 |
+| 各系列的其他字段 | `.tt-tier-3` | 11px | Category 等维度信息 |
+| Stack Total | `.tt-tier-1.tt-stack-total` | **20px** | 底部总结行，字体最大 |
+
+**设计意图**：通过一个场景完整验证所有 Tier 分配规则，包括单系列和多系列场景的 Stack Total 行为。
+
+🔴 **测试-分析**：Bug #75004 已修复
+
+---
+
+### Scenario 10：堆叠柱状图 + 非 Combined + Card（对比验证）
+
+**Scenario Objective**：验证堆叠柱状图在关闭 Combined Tooltip 时，Card 样式的 Stack Total 是否仍以 20px 大字体突出显示，与 Combined 模式形成对比。
+
+**Pre-condition**：
+- 堆叠柱状图配置：
+  - **X 轴**：绑定 Dimension（如 `Quarter`）
+  - **Y 轴**：绑定 **2 个 Measure**（如 `Sum(Sales)`、`Sum(Profit)`）
+  - **颜色分组**：绑定 Dimension（如 `Category`，至少 2 个值：Business、Personal）
+- Customize Tooltip：Combined Tooltip = 不选中，Tooltip Style = Card
+
+**Steps**：
+1. 打开 Customize Tooltip 对话框，确认 Combined Tooltip 已开启，Tooltip Style 选 Card，保存。
+2. 悬停某个堆叠柱的 **第一个 Measure 数据块**（如 Q3/Business 的 Sales 块），触发 combined tooltip。
+3. 观察 tooltip 整体布局和各行字号：
+   - 最顶部最大字体行显示的是什么？
+   - 紧接其下的小字行显示的是什么？
+   - 后续其他 Measure 和 Category 如何显示？
+   - 底部 Stack Total 的字号是否最大？
+
+**Expected Result**：
+- **第一行（tier-1，16px）**：悬停的 Measure 值，如 `Sum(Sales): 73.3K`
+- **第二行（tier-2.subtitle，12px）**：共享 X 轴维度，如 `Quarter: Q3`，仅出现一次
+- **第三行（tier-2，13px）**：另一个 Measure 的值，如 `Sum(Profit): 15.2K`
+- **第四行（tier-3，11px）**：颜色分组字段，如 `Category: Business`
+- **后续行（tier-2/tier-3）**：其他 Category 的 Sales 和 Profit 数据
+- **最后一行（tier-1.stack-total，20px）**：Stack Total，如 `Total: 233.2K`，字体最大
+
+**Tier 分配规则验证**：
+| 内容 | Tier | 字号 | 验证点 |
+|------|------|------|--------|
+| 悬停的 Measure | `.tt-tier-1` | 16px | 最突出，位于顶部 |
+| 共享 X-dimension | `.tt-tier-2.tt-subtitle` | 12px | 副标题样式，仅显示一次 |
+| 其他系列的 Measure | `.tt-tier-2` | 13px | 同位置其他 Measure，次突出 |
+| 各系列的其他字段 | `.tt-tier-3` | 11px | Category 等维度信息 |
+| Stack Total | `.tt-tier-1.tt-stack-total` | **20px** | 底部总结行，字体最大 |
+
+**设计意图**：通过一个场景完整验证所有 Tier 分配规则，包括单系列和多系列场景的 Stack Total 行为。
+
+🔴 **测试-分析**：Bug #75004 已修复
+
+---
+
+### Scenario 11：普通柱状图 + Combined + Card（边界验证）
+
+**Scenario Objective**：验证普通柱状图（非堆叠、无颜色分组）在 Combined Tooltip 开启时，Card 样式仍能正确显示 X 轴维度，确保维度信息不会丢失。
+
+**Pre-condition**：
+- 非堆叠柱状图配置：
+  - **X 轴**：绑定 Dimension（如 `Quarter`）
+  - **Y 轴**：绑定 1 个 Measure（如 `Sum(Sales)`）
+  - **颜色分组**：**未绑定**（无）
+- Customize Tooltip：Combined Tooltip = 开启，Tooltip Style = Card
+
+**Steps**：
+1. 打开 Customize Tooltip 对话框，确认 Combined Tooltip 已开启，Tooltip Style 选 Card，保存。
+2. 悬停某个数据点，触发 combined tooltip。
+3. 观察 tooltip 布局：
+   - X 轴维度是否正确显示？
+   - 是否有缺失的维度信息？
+
+**Expected Result**：
+- **第一行（tier-1，16px）**：悬停的 Measure 值，如 `Sum(Sales): 73.3K`
+- **第二行（tier-2.subtitle，12px）**：X 轴 Dimension，如 `Quarter: Q3`，必须显示
+- **无 Stack Total**：非堆叠图无总和
+
+**Tier 分配规则验证**：
+| 内容 | Tier | 字号 | 验证点 |
+|------|------|------|--------|
+| 悬停的 Measure | `.tt-tier-1` | 16px | 最突出，位于顶部 |
+| X 轴 Dimension | `.tt-tier-2.tt-subtitle` | 12px | **必须显示**，副标题样式 |
+
+**设计意图**：验证当图表只有 X 和 Y 轴数据（无颜色分组）时，X 轴维度不会丢失，确保维度信息完整性。
+
+🔴 **测试-分析**：Bug #75055
+
+---
+
+### Scenario 12：雷达图 Tooltip 回归验证
 
 **Scenario Objective**：确认雷达图在 DEFAULT 和 CARD 样式下，tooltip 中 dimension 跳过逻辑正确，不出现 dimension 数据误显示或丢失。
 
@@ -375,83 +514,324 @@
 
 ---
 
-### Scenario 10：Combined Tip + Card 样式验证
+### Scenario 13：Multi-style Chart + Card 样式 Tooltip 验证
 
-**Scenario Objective**：验证 Combined Tooltip 与 CARD 样式的交互正确性。
+**Objective**：验证 Bar+Line 混合图表在 Card 样式下，各系列的 Measure 正确显示在最突出位置。
 
-**Scenario Description**：`renderCard()` 依赖 `(-1, -1)` separator 跳过逻辑，Combined Tip 场景是潜在的边界情况。实际代码中 Combined + CARD 时 `cardSolo = false`，列顺序保持 `{dims, measures, others}`（dims-first），共享 Dimension 作为合并 tooltip 的首行标题。
+**Description**：Multi-style 图表无法开启 Combined Tooltip，始终使用 measures-first 逻辑。需验证不同类型系列悬停时，各自的 Measure 正确显示在 tier-1。
 
-**Pre-condition**：折线图（含多系列），开启 Combined Tooltip，Tooltip Style 设置为 Card；另准备一个堆叠柱状图 + Combined Tooltip + Card。
+**Pre-condition**：
+- 创建 Multi-style 图表：Bar + Line 组合
+- **Bar 系列**：Y 轴绑定 `Sum(Sales)`
+- **Line 系列**：Y 轴绑定 `Sum(Profit)`
+- **共享 X 轴**：绑定 `Quarter`（Dimension）
+- Tooltip Style = Card
 
-**Key Steps**：
-1. 配置 Combined Tooltip = 开启，Tooltip Style = Card，保存。
-2. 悬停数据点，触发合并 tooltip，检查 HTML 结构。
-3. 确认共享 Dimension 在 tier-1（dims-first 顺序），各系列数据正常渲染为 `.tt-tier-N` 结构，无 `-1` 索引值泄露。
-4. 切换至堆叠柱状图 + Combined + Card，验证底部 Stack Total 行以 tier-1 样式显示。
+**Steps**：
+1. 打开图表的 Customize Tooltip 对话框，确认 Tooltip Style 选项存在。
+2. 选择 Card 样式，点击 OK 保存。
+3. 悬停 **Bar 数据点**（柱状图），观察 tooltip：
+   - 第一行是否显示 `Sum(Sales)`？
+   - 字体是否最大（16px）？
+4. 悬停 **Line 数据点**（折线图），观察 tooltip：
+   - 第一行是否显示 `Sum(Profit)`？
+   - 字体是否最大（16px）？
+5. 对比两次 tooltip，确认内容对应各自系列，无交叉混入。
 
 **Expected Result**：
-- Combined + CARD 模式下列顺序为 dims-first
-- separator marker `(-1, -1)` 被正确跳过，不出现在 tooltip 显示内容中
-- 堆叠图 Stack Total 以 tt-tier-1 样式强调显示
+| 悬停对象 | tier-1（16px） | tier-2（13px） | 备注 |
+|---------|---------------|----------------|------|
+| Bar 数据点 | `Sum(Sales): xxx` | `Quarter: Qx` | Measure 正确对应 Bar 系列 |
+| Line 数据点 | `Sum(Profit): xxx` | `Quarter: Qx` | Measure 正确对应 Line 系列 |
 
-**Risk Covered**：Combined Tip 与 CARD 样式交互、cardSolo 条件判断、separator 跳过逻辑
+**Risk Covered**：Multi-style 各系列独立字段配置、measures-first 逻辑正确性
 
-🔴 **测试-分析**：我认为期望的分析的不对，报了Bug #75002(dim display in first)，Bug #75004（for stack chart）
+🔴 **测试-分析**：符合预期
 
 ---
 
-### Scenario 11：Multi-style Chart + Card 样式 Tooltip 验证
+### Scenario 14：DC Chart（Date Comparison）+ Card 样式 Tooltip 验证
 
-**Scenario Objective**：验证 Multi-style 图表在 CARD 样式下，各 series 数据点的 tooltip tier 排序正确，measures-first 逻辑不因不同 series 类型产生异常。
+**Objective**：验证 DC 图表原始 Measure 优先显示在 tier-1，派生对比字段次之。
 
-**Scenario Description**：Multi-style 图表无法开启 Combined Tooltip，因此始终进入 `cardSolo = true` 分支（measures-first）。每个 series 有独立的 dims/measures 配置，需验证不同 series 悬停时 tier-1 内容正确对应。
+**Description**：PlotArea 在 cardSolo 模式下将 DC 派生字段排序在前，导致 Change 错误占据 tier-1。期望：原始 Measure → tier-1，Change → tier-2。
 
-**Pre-condition**：Multi-style 图表（如 Bar + Line），各 series 绑定不同 Measure，共享 Dimension，Tooltip Style 设置为 Card。
+**Pre-condition**：开启 Date Comparison 的图表（含原始 Measure、Current、Prior、Change value/Change%），Tooltip Style = Card。
 
-**Key Steps**：
-1. 进入 Customize Tooltip，确认 Tooltip Style 选项可见，设置为 Card 并保存。
-2. 分别悬停 Bar 和 Line series 数据点，检查各自 tooltip：
-   - tier-1 展示对应 series 的 Measure
-   - tier-2 展示 Dimension，无跨 series 字段混入
+**Steps**：
+1. 创建 DC 图表并配置对比字段，设置 Tooltip Style 为 Card，保存。
+2. 悬停数据点，检查 tier 分配：**原始 Measure → tier-1**，Change → tier-2，Current/Prior → tier-3，Dimensions → tier-3。
+3. 切换为 DEFAULT 样式，验证回归行为。
 
 **Expected Result**：
-- Tooltip Style 选项在 Multi-style 图表上正确显示
-- 各 series 的 Measure 值在 tier-1（最大字体），Dimension 在 tier-2
-- 不同 series 悬停时 tooltip 内容正确对应，无字段错位或空白
+- **原始 Measure → tier-1**（16px/600，最大字体）
+- **Change value/Change% → tier-2**（13px）
+- **Current/Prior → tier-3**（11px）
+- **Dimensions → tier-3**
+- 所有 DC 对比字段完整显示，数值正确，无对象引用错误
+- DEFAULT 模式下行为与 PR 前一致
 
-**Risk Covered**：Multi-style per-series 字段配置下 cardSolo measures-first 排序正确性、Tooltip Style UI 入口可用性
+**Risk Covered**：原始 Measure 应占 tier-1、派生字段优先级、DC 数据正确显示、DEFAULT 模式回归
+
+🔴 **测试-分析**：Bug #75030。期望：原始 Measure → tier-1，Change → tier-2。当前实际：Change → tier-1（错误）。
 
 ---
 
-### Scenario 12：DC Chart（Date Comparison）+ Card 样式 Tooltip 验证
+### Scenario 15：T&C（Trend & Comparison）+ Card 样式 Tooltip 验证
 
-**Scenario Objective**：验证 Date Comparison 图表在 CARD 样式下，对比 Measure 字段（当前值、对比值、变化量）的 tier 分配合理，不出现 tier-1 过度拥挤或对比字段显示异常。
+**Objective**：验证 T&C 场景原始 Measure 占 tier-1，派生字段次之。
 
-**Scenario Description**：DC 图表的对比字段（comparison measures，如同期对比值、变化率）在 PlotArea 中被归入 `measures` 数组。CARD + 非 Combined Tooltip 场景下（`cardSolo = true`），所有 measures 包括对比字段均提升至 tier-1 优先级。DC 图表通常产生 2～3 个对比 measure，全部进入 tier-1 后实际视觉层级是否合理需要验证。此外，DC 图表数据含 `DCMergeCell`，代码在 PlotArea 第1342行进行特殊解包（`getOriginalData()`），需确认解包后值在 CARD 样式下正确显示。
+**Description**：Bug #75030：T&C 派生字段（Change/Change%/Running Total 等）预期与 DC 一致：原始 Measure → tier-1，派生字段 → tier-2/tier-3。
 
-**Pre-condition**：创建一个启用了 Date Comparison 的图表（含当前期、对比期、变化量等字段），Tooltip Style 设置为 Card。
+**Pre-condition**：开启 Trend & Comparison 的图表（含派生字段），Tooltip Style = Card。
 
-**Key Steps**：
-1. 创建图表并开启 Date Comparison，配置对比字段（如 Current、Prior、Change%）。
-2. 进入 Customize Tooltip，设置 Tooltip Style 为 Card，保存。
-3. 悬停图表数据点，触发 tooltip。
-4. 检查 tooltip 中各对比 measure 字段（Current、Prior、Change%）所在的 tier 层级。
-5. 确认 `DCMergeCell` 解包后的原始数值正确显示，无 `[object Object]` 或乱码。
-6. 切换回 DEFAULT 样式，对比两种模式下 DC tooltip 内容的差异。
+**Steps**：
+1. 创建 T&C 图表配置派生字段，设置 Tooltip Style 为 Card，保存。
+2. 悬停数据点，检查 tier 分配：**原始 Measure → tier-1**，派生字段 → tier-2/tier-3。
 
 **Expected Result**：
-- DC 对比 measure 字段（Current / Prior / Change%）均正常出现在 tooltip 中
-- CARD 模式下所有 measure 字段（含 DC 对比字段）从 tier-1 开始依次渲染，超过3条后降为 tier-3
-- `DCMergeCell` 解包后显示为可读的原始数值，非对象引用
-- DEFAULT 模式下 DC tooltip 内容与引入此 PR 前行为一致（回归）
+- **原始 Measure → tier-1**（16px/600，最大字体）
+- **派生字段（Change/Change%/Running Total 等）→ tier-2/tier-3**（按位置顺序）
+- 所有派生字段完整显示
 
-**Risk Covered**：DC 对比 measure 在 cardSolo measures-first 排序下的 tier 分配、DCMergeCell 解包后在 CARD 模式下的正确渲染
+**Risk Covered**：T&C 派生字段 tier-1 错位问题
 
-🔴 **测试-分析**：场景1规则明确后(看是按字段类型分组，还是位置)，再check dc
+🔴 **测试-分析**：Bug #75030
 
 ---
 
-### Scenario 13：非图表组件不显示 Tooltip Style 选项验证
+### Scenario 16：Candle / Stock Chart + Card 样式验证
+
+**Objective**：验证 OHLC 字段 tier 分配及日期显示
+
+**Description**：Candle/Stock 图表的 measures 数组为 `[High, Close, Open, Low]`，按视觉顺序排列。当前实现将 High 放在 tier-1，不符合金融惯例（收盘价应最突出）。
+
+**Pre-condition**：Candle/Stock 图表，绑定 OHLC + 日期维度，Tooltip Style = Card
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card
+2. 悬停 K 线数据点
+3. 检查 OHLC 字段的 tier 分配
+4. 确认日期维度存在
+
+**Expected Result**：
+- High → tier-1，Close → tier-2，Open/Low → tier-3
+- 日期维度出现在 tooltip 中
+
+**Risk Covered**：OHLC 字段顺序、金融语义一致性
+
+🔴 **测试-分析**：Bug #75026
+
+---
+
+### Scenario 17：Gantt Chart + Card 样式验证
+
+**Objective**：验证时间字段和 Task 名称的显示
+
+**Description**：Gantt 图表的 measures = [Start Date, End Date, Milestone]，导致 Task 名称被压到 tier-3，影响用户快速识别任务。
+
+**Pre-condition**：Gantt 图表，绑定 Start/End/Task，可选 Milestone，Tooltip Style = Card
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card
+2. 悬停 Gantt 条形
+3. 检查 Start/End 的 tier 分配
+4. 确认 Task 名称存在
+
+**Expected Result**：
+- Start Date → tier-1，End Date → tier-2
+- Task 名称出现在 tooltip 中
+
+**Risk Covered**：Task 名称可见性、字段优先级语义
+
+🔴 **测试-分析**：确认 Task 名称出现在 tooltip 中。当前实现将时间字段放在最突出位置，Task 名称作为核心标识被弱化，存在语义问题。(Bug #75015)
+
+---
+
+### Scenario 18：Map Chart + Card 样式验证
+
+**Objective**：验证多层地图美学字段过滤在 Card 模式下的正确性，及地名的 tier 位置
+
+**Description**：Map 图表多层钻取时，仅最高层显示美学字段（如颜色分组），低层不显示。此过滤逻辑在 Card 模式下需验证是否影响 tier 分配和地名显示位置。
+
+**Pre-condition**：
+- **用例 A（单层地图）**：
+  - 地理字段：`State`（州级别）
+  - 颜色绑定：`Region`（按区域着色）
+- **用例 B（多层地图）**：
+  - 地理字段：`State`（州级别）→ `City`（城市级别），支持钻取
+  - 颜色绑定：`Region`（按区域着色）
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card，保存
+2. 悬停用例 A 的区域，观察 tooltip 中地名和颜色字段的 tier 分配
+3. 悬停用例 B 的 State 层区域，记录 tooltip 内容
+4. 钻取至 City 层，悬停城市区域，记录 tooltip 内容
+5. 对比 State 层与 City 层的 tooltip 差异
+
+**Expected Result**：
+- **用例 A**：`State` 地名显示在 tier-1，`Region` 颜色字段显示在 tier-2
+- **用例 B State 层**：`State` → tier-1，`Region` → tier-2（最高层，显示美学字段）
+- **用例 B City 层**：`City` → tier-1，`Region` **不显示**（非最高层，美学字段过滤）
+- 两层 tooltip 均无布局错乱或字段错误混入
+
+**Risk Covered**：多层地图美学字段过滤是否影响 Card 模式 tier 分配、地名 tier 位置正确性
+
+🔴 **测试-分析**：分别验证单层和多层地图的 tooltip 差异。多层地图仅最高层显示美学字段是设计决策，可接受。
+
+---
+
+### Scenario 19：Relation / Network Chart + Card 样式验证
+
+**Objective**：验证根节点与非根节点的字段过滤
+
+**Description**：Relation/Network 图表根节点与非根节点的字段过滤规则不同，根节点排除 Target 和美学字段。
+
+**Pre-condition**：Relation 图表，绑定 Source/Target/度量/颜色/节点大小，Tooltip Style = Card
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card
+2. 悬停根节点，记录显示字段
+3. 悬停非根节点，记录显示字段
+4. 若绑定 nodeShape，验证根节点是否显示
+
+**Expected Result**：
+- 根节点：Source(tier-1)，无 Target 和美学字段
+- 非根节点(Target节点)：Target(tier-1) + Source(tier-2) + 美学(tier-3)
+- 两类节点均无多余字段混入或布局错乱
+
+**Risk Covered**：根节点/非根节点字段过滤差异
+
+🔴 **测试-分析**：符合预期
+
+---
+
+### Scenario 20：Box Plot + Card 样式验证
+
+**Objective**：验证箱型统计量 tier 分配及颜色分组维度显示
+
+**Description**：Box Plot 的五项统计量均作为 measures，颜色分组维度作为 dims，字段名带 BoxDataSet 前缀（如 `Max_customer_id`）。
+
+**Pre-condition**：Box Plot 图表，绑定维度（如 state）、度量（如 customer_id）、颜色分组维度（如 reseller），Tooltip Style = Card
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card，保存
+2. 悬停 Box Plot 数据点，触发 tooltip
+3. 检查统计量的 tier 分配
+4. 确认颜色字段和维度字段显示情况
+
+**Expected Result**：
+- `Max_[field]` → tier-1，`Q75_`/`Medium_`/`Q25_`/`Min_` → tier-2
+- 维度（state）和颜色分组维度（reseller）→ tier-3
+- 字段名含统计量前缀（如 `Max_customer_id`）为预期行为
+
+**Risk Covered**：Box Plot 统计量 tier 分配、颜色分组维度可见性
+
+🔴 **测试-分析**：符合预期
+
+---
+
+### Scenario 21：Word Cloud + Card 样式验证
+
+**Objective**：验证词频与词本身的 tier 分配，记录当前行为作为基线
+
+**Description**：Word Cloud 中词本身为 dim、词频为 measure，Card 模式下 measures 优先，导致词频在 tier-1、词本身在 tier-2。
+
+**Pre-condition**：Word Cloud 图表，绑定文字字段（如 Product）和大小字段（如 Count），Tooltip Style = Card
+
+**Key Steps**：
+1. 设置 Tooltip Style 为 Card，保存
+2. 悬停词云中任意词，触发 tooltip
+3. 记录词本身和词频各自的 tier
+
+**Expected Result**：
+- 词频（measure）→ tier-1，词本身（dim）→ tier-2
+- 此为当前实现行为（语义上词本身应在 tier-1，待产品确认）
+
+**Risk Covered**：Bug #75035
+
+---
+
+### Scenario 22：Sunburst Chart + Card 样式验证
+
+**Objective**：验证 Sunburst 图表在 Card 模式下，悬停不同层级的环时 tooltip tier-1 字段随当前层正确切换
+
+**Description**：Sunburst 所有层级同时可见（内环 = 外层维度，外环 = 内层维度），无需钻取即可对比不同层的 tooltip。tier-1 应始终反映当前悬停环所对应的维度字段。
+
+**Pre-condition**：
+- 创建 Sunburst 图表，绑定如下字段：
+  - **层级维度**：`Category`（内环）→ `Product`（外环）
+  - **大小（Size）**：`Sum(Sales)`
+  - **颜色（Color）**：`Region`
+- 打开 Customize Tooltip，设置 Tooltip Style = Card，保存
+
+**Key Steps**：
+1. 预览图表，确认 Sunburst 内外两层环均可见
+2. 悬停**内环**某个扇区（Category 层），观察 tooltip：
+   - 最大字体（16px）显示的是哪个字段？
+   - 中等字体（13px）显示的是哪个字段？
+3. 移动鼠标至同一分组下的**外环**扇区（Product 层），观察 tooltip：
+   - 最大字体（16px）显示的是哪个字段？是否仍为 Category？
+   - 中等字体（13px）是否出现了 Product？
+4. 对比两次 tooltip，确认外环比内环多出 `Product` 字段（tier-2），且 `Sum(Sales)` 层级随之后移
+
+**Expected Result**：
+
+| 悬停位置 | tier-1（16px） | tier-2（13px） | tier-3（11px） |
+|----------|----------------|----------------|----------------|
+| 内环（Category 环） | `Category: xxx` | `Sum(Sales): xxx` | `Region: xxx` |
+| 外环（Product 环） | `Category: xxx` | `Product: xxx` | `Sum(Sales): xxx` |
+
+- **两层 tier-1 均为 Category**（`getCurrentTreeDims()` 始终将顶层维度排在首位）
+- 内环为 Category 聚合节点，Product 无具体值不显示，`Sum(Sales)` 升至 tier-2
+- 外环有具体 Product 值，出现在 tier-2；`Sum(Sales)` 退至 tier-3
+- 核心验证：外环 tooltip 比内环多出 `Product` 字段（tier-2），`Sum(Sales)` 层级随之后移
+
+**Risk Covered**：Sunburst/Treemap 共用 TreemapVO 专属 measures 路径（`getCurrentTreeDims()`）、层级切换对 tier 分配的影响
+
+🔴 **测试-分析**：符合预期
+
+---
+
+### Scenario 23：Mekko Chart + Card 样式验证
+
+**Objective**：验证 Mekko 图表在 Card 模式下，Measure、外层维度、内层维度三类字段的 tier 分配正确，内层维度不被遗漏
+
+**Description**：Mekko 图表同时有外层维度（X 轴分组）和内层维度（色块细分），两个维度字段均应出现在 tooltip 中，且 Measure 优先于维度字段显示。
+
+**Pre-condition**：
+- 创建 Mekko Chart，绑定如下字段：
+  - **外层维度（X-axis）**：`Category`
+  - **内层维度（Color/细分）**：`Sub-Category`
+  - **Y-axis Measure**：`Sum(Sales)`
+- 打开 Customize Tooltip，设置 Tooltip Style = Card，保存
+
+**Key Steps**：
+1. 预览图表，悬停任意一个色块，触发 tooltip
+2. 检查 tooltip 共显示几行，各行字体大小是否有层级差异
+3. 逐行确认：
+   - 最大字体（16px）行显示的是哪个字段？
+   - 中等字体（13px）行显示的是哪个字段？
+   - 最小字体（11px）行显示的是哪个字段？
+4. **重点确认**：`Sub-Category`（内层维度）是否出现在 tooltip 中
+
+**Expected Result**：
+
+| tier | 字号 | 显示字段 | 验证重点 |
+|------|------|----------|----------|
+| tier-1 | 16px | `Sum(Sales): xxx` | Measure 优先，最突出 |
+| tier-2 | 13px | `Category: xxx` | 外层维度 |
+| tier-3 | 11px | `Sub-Category: xxx` | **内层维度必须出现，不可缺失** |
+
+- 三个字段均完整显示，`Sub-Category` 不被意外过滤掉
+
+**Risk Covered**：Mekko 内层维度在 Card 模式下的 tier 分配正确性、内层维度字段完整性
+
+🔴 **测试-分析**：符合预期
+
+---
+
+### Scenario 24：非图表组件不显示 Tooltip Style 选项验证
 
 **Scenario Objective**：确认 Tooltip Style 选项（Default/Card 单选按钮）仅在图表组件的 Customize Tooltip 中显示，非图表组件（如 Table、Text）中不显示。
 
@@ -472,7 +852,7 @@
 
 ---
 
-### Scenario 14：本地化文本验证
+### Scenario 25：本地化文本验证
 
 **Scenario Objective**：验证新增 i18n key（`_#(Tooltip Style)`、`_#(Default)`、`_#(Card)`）在各语言环境下正确显示，无 key 直出或乱码。
 
@@ -490,7 +870,7 @@
 
 ---
 
-### Scenario 15：文档一致性验证
+### Scenario 26：文档一致性验证
 
 **Scenario Objective**：验证新增的 Card Tooltip 功能在官方文档中有完整、准确的说明，确保用户能够了解并正确使用该功能。
 
