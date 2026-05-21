@@ -7,7 +7,8 @@
 
 - PR diff：完整（17个文件，9页）
 - Feature 描述：完整
-- Knowledge 知识库文档：I:\inetsoft\stylebi-docs\InetSoftUserDocumentation\modules\viewsheet\pages
+- Knowledge 知识库文档：
+https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1.0/viewsheet/ChartTypes.html
 
 ---
 
