@@ -1,20 +1,24 @@
 ---
 doc_type: feature-test-doc
 product: StyleBI
-module: Chart / Viewer
+module: Chart / Tree Chart
 Feature_id: "74787"
 Feature: Rounding corners on tree chart nodes
 pr_link: https://github.com/inetsoft-technology/stylebi/pull/3615
 Assignee: Franky Pan
-last_updated: 2026-05-15
+last_updated: 2026-05-21
 version: stylebi-1.2.0
+---
+
+# Feature #74787 — Rounding corners on tree chart nodes
+
 ---
 
 # 1 Feature Summary
 
-**核心目标**：为树形图（Tree Chart）的节点形状增加圆角支持。用户可通过 Plot Options 面板中的 Node Corner Radius 输入控件调整圆角半径（范围 `[0, 0.5]`），使节点从直角矩形变为圆角矩形乃至近似药丸形；同时支持通过 Script（`chart.nodeCornerRadius`）程序化控制。
+**核心目标**：为 Tree Chart 的节点（Node）增加圆角支持，允许用户通过 `nodeCornerRadius` 参数（范围 0–0.5）控制节点矩形的圆角程度：`0` = 直角，`0.5` = 胶囊形。新建 Tree Chart 默认值为 `0.3`（圆角），旧版已保存图表加载时保持直角（向后兼容）。
 
-**用户价值**：提升树形图的视觉美观性与可定制性，与已有 Bar Chart 圆角功能保持产品能力对齐，满足客户对节点样式个性化的需求。
+**用户价值**：Tree Chart 原有节点为硬角矩形，视觉生硬。圆角功能使节点外观更现代、与参考样例（见 Product Organisation - Tree）保持一致，提升整体图表美观度与可定制性，与已有 Bar Corner Radius 功能交互逻辑对齐。
 
 ---
 
@@ -22,27 +26,27 @@ version: stylebi-1.2.0
 
 ## P0 - Core Path
 
-- 新建 Tree Chart 默认圆角值（0.3）正确渲染
-- UI 调整 Node Corner Radius 值后节点形状实时变化
-- 保存后重新打开，圆角值与渲染一致（序列化往返）
-- 旧版已保存 Tree Chart（XML 无 `nodeCornerRadius` 属性）加载后节点保持直角（兼容性）
+- 新建 Tree Chart 节点默认显示圆角（radius = 0.3）
+- 旧版 XML（无 `nodeCornerRadius` 属性）加载后节点保持直角（向后兼容）
+- UI 设置 `nodeCornerRadius` → 渲染正确更新 → 保存重开后值持久化
+- 节点圆角在 PDF / Image 导出及打印预览中与屏幕一致
 
 ## P1 - Functional Path
 
-- 边界值输入：0、0.5、负值、超 0.5 值、非数字字符的拦截与提示
-- Script 设置 `nodeCornerRadius` 与 UI 设置效果一致
-- 图表类型切换（Tree → 其他 → Tree）时控件可见性与值隔离
-- Bar Chart 的 `barCornerRadius` 功能不受 CSS 类名变更影响（回归）
-- 导出为 PDF / PNG 时节点圆角与界面一致
-- Node Corner Radius 控件仅在 Tree Chart 类型下可见
+- 值域边界校验：`0`、`0.5`、负数、超 `0.5`、非数字、清空（null）
+- Script 设置 `nodeCornerRadius` 后图表更新，auto-complete 仅在 CHART_TREE 类型下可见
+- 图表类型切换（Tree ↔ 非 Tree）时控件正确显隐，切换回 Tree 时值保留
+- 修改圆角值后 tile `genTime` 更新，前端正确刷新
+- 非 Tree 类型（Bar / Network）不显示该控件，渲染不受影响
+- Tree Chart + Date Comparison 开启时圆角正常渲染
+- 极端节点尺寸（极细 / 极扁）下圆角计算无视觉异常
+- area select / highlight 交互在圆角节点上正常工作
 
-## P2 - Extended Path （按需测试）
+## P2 - Extended Path（按需测试）
 
-- 大型树形图（100+ 节点）启用圆角时的渲染性能
-- Print Layout / Mobile 下的圆角显示
-- 圆角后节点文本（text）显示是否正常（Bug #74991 关注点）
-- 圆角后节点 highlight / 选中状态样式
-- 多语言环境下"Node Corner Radius"标签的翻译完整性
+- 多语言环境（中文/日文/法文）下 "Node Corner Radius" 及错误提示文本显示正确
+- Bar Corner Radius 控件 CSS 类名变更（`.bar-corner-radius` → `.corner-radius`）后样式无回归
+- Mobile / 小屏幕（≤ 480px）下 Plot Options 面板布局无错位
 
 ---
 
@@ -51,61 +55,67 @@ version: stylebi-1.2.0
 | ID | Scenario | Steps | Expected | Result | Notes |
 |---|---|---|---|---|---|
 | **P0** | | | | | |
-| TC-1 | 新建 Tree Chart 默认圆角验证 | 1. 新建 Viewsheet，拖入数据源创建 Tree Chart<br>2. 不修改任何 Plot Options<br>3. 观察节点形状<br>4. 打开 Plot Options → 查看 Node Corner Radius 值 | 节点显示为圆角矩形；Plot Options 中 Node Corner Radius 值为 0.3 | | 来源：分析MD Scenario 1 🔴 结果匹配；风险：DEFAULT_NODE_CORNER_RADIUS = 0.3 默认值是否生效 |
-| TC-2 | 旧版 Tree Chart 加载兼容性 | 1. 准备一份旧版 Tree Chart（XML 中无 `nodeCornerRadius` 属性）<br>2. 在升级后环境中加载<br>3. 观察节点形状<br>4. 打开 Plot Options → 查看 Node Corner Radius 值 | 节点保持直角；Plot Options 中 Node Corner Radius 输入框为空（null/0）| | 来源：分析MD Scenario 2 🔴 结果匹配；风险：parseXML 缺失属性时强制赋 0 的兼容逻辑；双默认值机制 |
-| TC-3 | UI 调整圆角值 → 保存 → 重新打开 | 1. 打开 Tree Chart，进入 Plot Options<br>2. 将 Node Corner Radius 设为 0.4，确认<br>3. 观察节点形状<br>4. 保存 Viewsheet，关闭后重新打开<br>5. 查看节点形状与 Plot Options 值 | 两次打开节点圆角一致，Plot Options 值为 0.4；节点视觉形状与值匹配 | | 来源：分析MD Scenario 3 🔴 结果匹配；风险：XML writeXML/parseXML 往返正确性 |
+| TC-1 | 新建 Tree Chart 默认圆角 | 1. 新建 Viewsheet，创建 Tree Chart<br>2. 不修改任何 Plot Options<br>3. 查看节点外观<br>4. 打开 Plot Options，查看 "Node Corner Radius" 输入框 | 节点显示圆角（radius=0.3 效果）；输入框为空，placeholder 显示 0.3 | 🔴 默认值 0.3 ✅ | 分析 Scenario 1；PR 默认值设计 |
+| TC-2 | 旧版 XML 向后兼容 | 1. 导入 PR 合并前保存的 Tree Chart（XML 无 `nodeCornerRadius` 属性），或手动删除该属性后导入<br>2. 打开 Viewsheet，查看节点外观<br>3. 打开 Plot Options，查看值 | 节点为直角（无圆角）；输入框为空（值 0） | 🔴 节点为直角 ✅ | 分析 Scenario 2；最高优先级，双默认值设计核心风险 R1 |
+| TC-3 | 圆角值配置、保存与持久化 | 1. 打开 Plot Options，设置 Node Corner Radius = 0.2，点击 OK<br>2. 观察节点圆角及 tile 刷新<br>3. 保存 Viewsheet，关闭后重新打开<br>4. 打开 Plot Options，确认值 | 圆角与 0.2 一致，tile genTime 变化；重开后值持久为 0.2，节点保持圆角 | 🔴 加载正确 ✅ | 分析 Scenario 3；覆盖 R5 equalsContent / genTime |
+| TC-4 | 导出圆角渲染一致性 | 1. 设置 nodeCornerRadius=0.3，导出为 PDF<br>2. 导出为 PNG/Image<br>3. 打印预览<br>4. 对比屏幕显示 | PDF、Image、打印预览中节点圆角与屏幕一致，切片边界无截断 | 🔴 导出和显示一致 ✅ | 分析 Scenario 7；R2；paint 路径 VSExporter 切片 |
 | **P1** | | | | | |
-| TC-4 | 边界值与错误提示验证 | 1. 打开 Tree Chart Plot Options<br>2. 输入 -0.1 → 观察提示<br>3. 输入 0.6 → 观察提示<br>4. 输入 "abc" → 观察提示<br>5. 输入 0 → 观察节点形状<br>6. 输入 0.5 → 观察节点形状 | -0.1 和 0.6 显示 `nodeCornerRadius.rangeWarning`；"abc" 被浮点验证拦截；0 时节点为直角（UI 显示空）；0.5 时节点接近药丸形 | | 来源：分析MD Scenario 4 🔴 结果匹配；风险：前端 Validator + 后端 clamp 逻辑一致性 |
-| TC-5 | Script 控制节点圆角（⚠️ 存在 Bug #74988）| 1. 打开 Tree Chart，进入 Script 编辑器<br>2. 执行 `chart.nodeCornerRadius = 0.4`<br>3. 观察节点形状<br>4. 打开 Plot Options，确认显示值<br>5. Script 改为 0，再次观察 | Script 设置 0.4 后节点显示圆角，Plot Options 同步 0.4；设置 0 后节点恢复直角 | | 来源：分析MD Scenario 5 🔴 发现 Bug #74988（barCornerRadius script 未在 tree chart 生效）；需关联 Bug 修复后回归 |
-| TC-6 | 图表类型切换时控件可见性与值隔离 | 1. 创建 Tree Chart，设置 Node Corner Radius = 0.4<br>2. 切换图表类型为 Bar Chart<br>3. 打开 Plot Options → 确认 Node Corner Radius 控件不可见<br>4. 切换回 Tree Chart<br>5. 打开 Plot Options → 确认 Node Corner Radius 值 | Bar Chart 下控件不可见；切换回 Tree Chart 后值仍为 0.4（或合理默认值）；Bar Chart 节点不受 `nodeCornerRadius` 影响 | | 来源：分析MD Scenario 6 🔴 结果正确；风险：nodeCornerRadiusVisible 条件判断；属性隔离 |
-| TC-7 | Bar Chart 圆角回归（CSS 类名变更影响）| 1. 创建 Bar Chart<br>2. 打开 Plot Options<br>3. 确认 Bar Corner Radius 输入框正常显示<br>4. 调整值后确认节点样式变化<br>5. 检查 `.corner-radius` CSS 样式在两个输入框上均正确应用 | Bar Chart 的 Bar Corner Radius 输入框显示及交互无异常；CSS 样式渲染正确 | | 来源：分析MD 回归测试；风险：`.bar-corner-radius` → `.corner-radius` 类名变更影响已有功能 |
-| TC-8 | 导出场景圆角一致性 | 1. 创建 Tree Chart，设置 Node Corner Radius = 0.3<br>2. 导出为 PDF，检查节点形状<br>3. 导出为 PNG，检查节点形状<br>4. 与界面预览对比 | PDF 和 PNG 中节点圆角形状与界面一致，不出现直角退化 | | 来源：分析MD Scenario 7 🔴 导出一致；风险：Java 端 RelationVO.paint() 与前端渲染路径一致性 |
+| TC-5 | 值域边界与非法输入校验 | 1. 输入 `0`，OK → 观察<br>2. 输入 `0.5`，OK → 观察<br>3. 输入 `-0.1` → 观察提示<br>4. 输入 `0.6` → 观察提示<br>5. 输入 `abc` → 观察提示<br>6. 清空输入框，OK → 观察 | `0`：直角；`0.5`：胶囊形；负数/超 0.5/非数字：显示 "Node corner radius must be between 0 and 0.5."，无法提交；清空：直角 | 🔴 和期待结果一致 ✅ | 分析 Scenario 4；R6；Bug #74991 text 超出已关联 |
+| TC-6 | Script 设置 nodeCornerRadius 及 auto-complete | 1. 打开 Script Editor，输入 `Chart1.`，检查 auto-complete<br>2. 设置 `Chart1.nodeCornerRadius = 0.4;`，执行<br>3. 观察节点圆角及 tile genTime<br>4. 打开 Plot Options，确认值同步<br>5. 切换为 Bar Chart，确认 auto-complete 不含该属性 | Tree Chart 下 auto-complete 含 `nodeCornerRadius`；设置后圆角更新，UI 值同步；非 Tree 类型不暴露 | 🔴 Script 功能正确 ✅ | 分析 Scenario 5；R4/R5；Bug #74988 已关联（barCornerRadius script 未应用于 Tree Chart） |
+| TC-7 | 图表类型切换时控件显隐 | 1. Tree Chart 中打开 Plot Options，确认显示 "Node Corner Radius"<br>2. 切换为 Bar Chart，打开 Plot Options，确认控件不可见<br>3. 切换回 Tree Chart，打开 Plot Options，确认控件可见且值保留 | 控件随类型正确显隐；切换回 Tree 时上次设置值保留；渲染无异常 | 🔴 切换控件不显示，结果不应用，切回保持 ✅ | 分析 Scenario 6；R4 状态切换 |
+| TC-8 | genTime 更新与 tile 刷新联动 | 1. 记录当前 tile URL 中 `genTime` 值（浏览器 Network 面板）<br>2. 修改 Node Corner Radius 从 0 改为 0.3，OK<br>3. 观察 tile 请求 URL 的 `genTime` | genTime 变化，浏览器发起新 tile 请求，圆角效果更新 | | 分析 Scenario 11；R5 equalsContent / tile 刷新机制 |
+| TC-9 | 非 Tree 类型不显示控件且渲染无影响 | 1. 打开 Bar Chart Plot Options，确认无 "Node Corner Radius"<br>2. 打开 Network Chart Plot Options，确认无该控件<br>3. 确认两图表渲染正常，无圆角 | 非 CHART_TREE 类型不含该控件；渲染无变化 | 🔴 非 Tree 不显示控件 ✅ | 分析 Scenario 11/12；R4 Cross-Module 回归 |
+| TC-10 | Tree Chart + Date Comparison 圆角渲染 | 1. 开启 Tree Chart 的 Date Comparison（Standard Periods）<br>2. 设置 nodeCornerRadius=0.3<br>3. 查看节点圆角<br>4. 切换 Comparison Option（VALUE/CHANGE/PERCENT）后再查看 | DC 开启后圆角正常显示，与未开启 DC 效果一致；切换 Comparison Option 不影响圆角 | 🔴 DC 开启后圆角正常 ✅ | 分析 Scenario 9；R7；chart-date-comparison.md |
+| TC-11 | 极端节点尺寸圆角渲染 | 1. 创建含极长标签节点的 Tree Chart，设置 nodeCornerRadius=0.5<br>2. 创建层级密集（节点极扁）的场景，设置 nodeCornerRadius=0.5<br>3. 调整图表容器至较小尺寸 | 节点为胶囊形，无视觉错误/渲染崩溃；圆角弧度不超过短边的一半 | 🔴 显示正常 ✅ | 分析 Scenario 8；R3 边界渲染 |
+| TC-12 | area select / highlight 在圆角节点上的交互 | 1. 设置 nodeCornerRadius=0.3，进入 Viewer<br>2. 点击单个节点，验证 highlight 效果<br>3. 框选多个节点（area select），验证选中效果<br>4. 取消选择，验证恢复正常 | 点击/框选高亮效果正确作用于圆角节点；选中区域与节点视觉边界对齐；取消后恢复 | | 分析 MD 顶部遗漏标注；高交互风险点 |
 | **P2** | | | | | |
-| TC-9 | 大型树形图渲染性能 | 1. 创建含 100+ 节点的 Tree Chart<br>2. 启用圆角（0.3），观察渲染帧率<br>3. 与关闭圆角（0）对比 | 圆角开启时渲染性能无明显降级，帧率可接受 | | 来源：分析MD 性能测试；风险：RelationVO.paint() 中每帧重建 RoundRectangle2D |
-| TC-10 | Print Layout / Mobile 圆角显示 | 1. 创建设置了圆角的 Tree Chart<br>2. 切换至 Print Layout 预览<br>3. 在 Mobile 模式下查看 | Print Layout 和 Mobile 模式下节点圆角正常显示 | | 来源：分析MD 未覆盖内容第 4 条 |
-| TC-11 | 圆角后节点文本显示 | 1. 创建含文本标签的 Tree Chart<br>2. 设置圆角值（0.3、0.5）<br>3. 检查节点内文本截断、位置、溢出情况 | 节点文本显示完整，无异常截断或溢出 | | 来源：分析MD 未覆盖内容第 1 条；关联 Bug #74991 |
-| TC-12 | 圆角后节点 highlight / 选中状态 | 1. 创建 Tree Chart，设置圆角<br>2. 点击/悬停节点，触发 highlight 和选中状态<br>3. 观察高亮和选中样式 | Highlight 和选中状态样式与圆角形状适配，无直角残留 | | 来源：分析MD 未覆盖内容第 2、3 条 |
+| TC-13 | 多语言文本显示 | 切换为中文/日文/法文语言环境，打开 Tree Chart Plot Options，输入非法值触发提示 | "Node Corner Radius" 标签及错误提示文本正确显示，无截断或乱码 | 🔴 已添加测试 ✅ | 分析 专项-本地化；i18n 新增字符串 |
+| TC-14 | Bar Corner Radius CSS 回归 | 1. 打开 Bar Chart Plot Options，检查 "Bar Corner Radius" 输入框样式<br>2. 对比 Tree Chart "Node Corner Radius" 输入框样式 | 两个输入框样式一致（min-width ≥ 160px），无样式错乱；Bar Corner Radius 功能正常 | 🔴 样式一致 ✅ | 分析 Scenario 10；`.bar-corner-radius` → `.corner-radius` CSS 重命名 |
+| TC-15 | Mobile 小屏幕布局 | 在 ≤480px 宽度设备/模拟器下，打开 Tree Chart Plot Options | 面板布局无错位，"Node Corner Radius" 输入框可正常交互 | 🔴 验证无影响 ✅ | 分析 专项-Mobile；新增 UI 控件 |
 
 ---
 
 # 4 Special Testing
 
-## Security
-不涉及。
-
-## Performance
-见 TC-9：100+ 节点树形图启用圆角时的渲染帧率对比测试。
-关注点：`RelationVO.paint()` 中每次绘制均重新创建 `RoundRectangle2D` 实例，大量节点场景下需确认无性能瓶颈。
-
-## Compatibility
-- **旧数据兼容**（TC-2）：升级前保存的 Tree Chart（XML 无 `nodeCornerRadius` 属性）加载后节点保持直角。
-- **双默认值策略**：新建图表默认 0.3，旧 XML 解析默认 0，需分别验证。
-
 ## 本地化
-- "Node Corner Radius" 标签已在 `srinter.properties` 添加英文，需验证其他支持语言（中文、日文等）Locale 文件是否有对应翻译资源，避免 fallback 显示英文 key。
+
+新增资源字符串：`Node Corner Radius`、`viewer.viewsheet.chart.nodeCornerRadius.rangeWarning`。需在中文、日文、法文等语言环境下验证 Plot Options 标签与错误提示文本正确显示，无截断。→ TC-13
 
 ## Script
-见 TC-5：通过 `chart.nodeCornerRadius` Script 属性控制节点圆角，验证与 UI 设置效果一致。
-⚠️ 当前关联 Bug #74988（barCornerRadius script 在 Tree Chart 中未生效），TC-5 需在 Bug 修复后回归验证。
+
+- CHART_TREE 类型：`Chart1.nodeCornerRadius` 在 Script Editor auto-complete 中可见，赋值后图表实时更新
+- 非 CHART_TREE 类型：auto-complete 不暴露该属性
+- Script 设置与 UI 面板值双向同步
+- 🔴 关联 Bug #74988（barCornerRadius script 未应用于 Tree Chart）：验证同类问题不在 nodeCornerRadius 上复现
+
+→ TC-6
 
 ## 文档/API
-- `nodeCornerRadius` 属于超出原始需求的 Script 能力扩展，需确认是否纳入产品文档/API 文档说明。
+
+🔴 doc 暂未添加，待上线后验证：Help 文档 [TreeChart 页](https://www.inetsoft.com/docs/stylebi/InetSoftUserDocumentation/1.0.0/viewsheet/TreeChart.html) 是否新增 Node Corner Radius 说明及 Script 属性文档。
 
 ## 配置检查
-- 确认 `PlotDescriptor` 的 XML 属性名 `nodeCornerRadius` 与 Script 暴露属性名一致。
-- 确认 `fieldset` 在 Angular 模板中的 DOM 结构正确，`nodeCornerRadius` 输入框被正确包裹（风险：diff 中存在缩进异常，可能导致在非 Tree Chart 类型时显示/隐藏行为异常）。
+
+`nodeCornerRadius` 存储于 `PlotDescriptor` XML 属性（`writeAttributes` / `parseAttributes`），属于 Viewsheet 级别配置，无 `SreeEnv` 全局属性，无需重启服务验证。需验证：
+- XML round-trip 精度保留（`1e-9` 精度）
+- 旧版 XML 缺省时覆盖为 `0.0` 的向后兼容逻辑
+
+→ TC-2、TC-3
 
 ---
 
 # 5 Regression Impact（回归影响）
 
-| 模块 | 影响描述 | 优先级 |
-|---|---|---|
-| Chart - Bar Chart | CSS 类名 `.bar-corner-radius` 重命名为 `.corner-radius`，需回归 Bar Corner Radius 输入框样式与交互（TC-7）| P1 |
-| Chart - Plot Options UI | `fieldset` 的 `*ngIf` 条件变更（新增 `nodeCornerRadiusVisible`），需验证 Bar/Tree 以外图表类型的 Plot Options 面板显示无异常 | P1 |
-| Chart - Script | `ChartProcessor` 中新增 Script 属性注册，需确认非 Tree Chart 类型下 `nodeCornerRadius` 属性不被暴露或设置无效 | P1 |
-| Export（PDF/Image）| `RelationVO.paint()` 渲染路径改动，需验证导出结果与界面一致（TC-8）| P1 |
-| Dashboard / Viewer | Tree Chart 嵌入 Dashboard 时圆角渲染正常 | P2 |
+| 模块 | 影响说明 | 关联 TC |
+|------|---------|---------|
+| Tree Chart 渲染 | `RelationVO.paint()` 修改 Shape 为 `RoundRectangle2D`，影响屏幕渲染、tile 生成、导出 | TC-1、TC-3、TC-4 |
+| Chart Plot Options 面板 | fieldset 显示条件新增 `nodeCornerRadiusVisible`，需验证已有控件（showValues、stackValues 等）不受影响 | TC-9 |
+| Bar Chart Corner Radius | CSS 类名从 `.bar-corner-radius` 改为 `.corner-radius`，共用样式 | TC-14 |
+| Script 引擎 | `ChartProcessor` 仅 CHART_TREE 注册属性；非 Tree 类型不受影响 | TC-6、TC-9 |
+| Export（PDF / Image / 打印） | `VSExporter` 通过 `VGraph.paintGraph()` 切片导出，`RoundRectangle2D` 需在切片边界正确裁剪 | TC-4 |
+| Viewsheet 保存/加载（XML） | `PlotDescriptor` XML 序列化新增属性，向后兼容依赖 `parseXML` 覆盖逻辑 | TC-2、TC-3 |
+| Date Comparison（Chart DC） | `ChartDcProcessor` 修改 RT 字段后，`initRelationElement()` 仍需正确传递圆角值 | TC-10 |
+| Network Chart（Relation 非 Tree） | 共用 `RelationVO`，但 `initRelationElement()` 有 `CHART_TREE` 守卫，需验证不受影响 | TC-9 |
 
 ---
 
@@ -113,5 +123,9 @@ version: stylebi-1.2.0
 
 | Bug ID | Description | Status |
 |---|---|---|
-| #74988 | `<Epic #74519-Feature #74787>` barCornerRadius script 在 Tree Chart 中未生效（nodeCornerRadius script 属性未正确应用到渲染层） | New（2026-05-15）|
-| #74991 | 圆角后 Tree Chart 节点文本（text）显示异常 | 待确认（来源：分析MD 未覆盖内容，需进一步复现）|
+| #74988 | `<Epic #74519-Feature #74787>` barCornerRadius script haven't applied in tree chart | Closed |
+| #74991 | `<Epic #74519-Feature #74787>` The value display is overflowing outside | Closed |
+
+> **TC-notes**：
+> - **#74988**：已关闭。验证 `nodeCornerRadius` Script 属性不存在同类问题（TC-6）；同时确认 `barCornerRadius` 在 Tree Chart 上的修复不被本次变更回退。
+> - **#74991**：已关闭。与 TC-5 中"清空输入框"及边界值测试对应；验证节点内文本显示不超出节点边界，特别是在设置较小圆角（radius < 0.1）或节点尺寸较小时（TC-11）。
