@@ -11,8 +11,7 @@
 
 | Feature | 图表类型 | 核心功能 |
 |---------|---------|---------|
-| **#74783** | Area/Stacked Area/Line/Stacked Line | Catmull-Rom Bezier 平滑曲线 |
-| **#74783** | Multi-style（Line + Area） | 全局控制，所有 style 同步应用平滑曲线 |
+| **#74783** | Area/Stacked Area/Line/Stacked Line, Multi-style | Catmull-Rom Bezier 平滑曲线（全局控制） |
 | **#74786** | Circular Network | 二次 Bezier 弯曲 chord lines |
 
 ### 用户价值
