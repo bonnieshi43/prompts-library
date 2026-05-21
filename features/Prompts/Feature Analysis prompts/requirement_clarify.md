@@ -131,11 +131,11 @@ Type: stylebi-feature-test-analysis
 
 每个测试场景必须包含：
 
-- **Scenario Objective** (测试目标)
-- **Scenario Description** (为什么)
-- **Pre-condition** (可选-若场景需要特定的数据、配置或系统状态才能执行，则在此描述；若无特殊要求，可填写“无”或省略该字段)
-- **Key Steps** (关键步骤)
-- **Expected Result** (预期结果)
+- **Scenario Objective** (测试目标，用业务语言描述用户可感知的功能或行为)
+- **Scenario Description** (测试风险点：从用户视角说明为什么需要测试此场景，关注业务风险而非技术实现细节，禁止提及类名、方法名、变量名)
+- **Pre-condition** (可选 - 需要的数据/配置/状态，无特殊要求可省略)
+- **Key Steps** (关键操作步骤，使用用户界面元素名称，如“勾选框”、“下拉菜单”、“按钮”，禁止出现类名、方法名、变量名、XML属性名)
+- **Expected Result** (预期结果，使用可观察的UI行为或数据表现描述，禁止出现代码逻辑判断)
 - **Risk Covered** (覆盖的风险点)
 
 ---
