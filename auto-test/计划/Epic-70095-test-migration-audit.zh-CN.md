@@ -241,7 +241,7 @@ portal2026 是 **单组件变更**：仅修改 `TopHeader`（高度 56→44px、
 
 | 区域 | 设计影响 | 测试动作 |
 |---|---|---|
-| 第 2 层 E2E – 补齐 SREE portal spec 与代码缺口 | 7 个 portal spec 仅有 Markdown 计划、无 TypeScript；基础设施就绪 | **现在写** – 使用现有 Testcontainers + Playwright |
+| 第 2 层 E2E – ~~补齐 SREE portal spec 与代码缺口~~ | ~~7 个 `repository-*.md` demo~~：Dashboard 已验证 AI 流水线；Markdown 计划**已废弃、删除**，不作排期 | **已取消** |
 | 第 2 层 E2E – portal2026 查看器黄金路径 | Portal 查看器尚无浏览器测试；单组件重设计不会破坏选择器 | **现在写** – 稳定黄金路径，基础设施已有 |
 | 第 2 层 E2E – composer2026 黄金路径 | 外壳重构使选择器今天很脆弱 | **延后** – composer2026 外壳稳定后编写 |
 | 第 3 层 Stagehand – Composer 重设计期间 | 语义意图经受结构变更 | **现在搭建** – 15–20 条关键工作流作为安全网 |
@@ -268,17 +268,7 @@ portal2026 是 **单组件变更**：仅修改 `TopHeader`（高度 56→44px、
 
 #### 第 2 层缺口
 
-**Spec 与代码缺口（7 个 portal spec）：** 已有 Markdown 计划，尚未生成 TypeScript 测试：
-
-| Spec | 区域 |
-|---|---|
-| `sree/portal/repository-tree.md` | 树导航交互 |
-| `sree/portal/repository-favorites.md` | 收藏夹增删打开 |
-| `sree/portal/repository-folder.md` | 文件夹创建/重命名/删除 |
-| `sree/portal/repository-search.md` | 搜索与筛选 |
-| `sree/portal/repository-history.md` | 资产历史视图 |
-| `sree/portal/repository-move.md` | 拖放移动资产 |
-| `sree/portal/repository-open-new-tab.md` | 新浏览器标签打开资产 |
+**~~Spec 与代码缺口（7 个 portal spec）~~（已废弃）：** 早期 demo 用 Markdown（`repository-tree` / `repository-favorites` / `repository-search` 等），**不作为任务**；Dashboard 相关 Playwright 已走通；本阶段 E2E 以查看器黄金路径为主，**Jenkins 接入延后**（case 规模不足）。
 
 **Portal 查看器黄金路径（尚未编写）：** 现有 9 个浏览器 spec 均覆盖 EM 管理流程。Portal 查看器尚无浏览器测试：
 
@@ -488,9 +478,9 @@ Tier 3 复杂服务与组件遵循 `SecurityProviderService` 引入的 `.logic.s
 
 | 任务 | 工作量 |
 |---|---|
-| 实现 7 个 SREE portal spec 与代码缺口（使用 `generate-browser-tests.prompt.md` AI 流水线） | ~3–4 天 |
+| ~~实现 7 个 SREE portal spec 与代码缺口~~ | **已取消**（demo Markdown 删除） |
 | 新增 5 条 portal 查看器黄金路径浏览器 spec（登录、打开 VS、跑报表、导出、新建 VS） | ~3–4 天 |
-| 将 E2E 接入 Jenkins（`Jenkinsfile`）并上传 HTML 报告 | ~1 天 |
+| ~~将 E2E 接入 Jenkins~~ | **延后**（case 规模不足，见后期规划） |
 | **合计** | **~1–2 周** |
 
 ### 阶段 5 – composer2026：类别 1 现在写，类别 3 随构建编写
@@ -627,9 +617,9 @@ reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
 | portal2026 Tier 2 中等（未测） | ~210 | 组合（80% 自动） | 第 3–5 周 |
 | portal2026 Tier 3 复杂（未测） | ~64 | 切片 | 第 5–6 周 |
 | Composer 类别 1：内部不变组件 + 全部服务 | ~30 服务 + 类别 1 未测组件 | 源码阅读 + 组合 | 第 3–5 周 |
-| E2E：实现 SREE portal spec 与代码缺口 | 7 spec | AI 流水线（`generate-browser-tests.prompt.md`） | 第 2–3 周 |
+| ~~E2E：实现 SREE portal spec 与代码缺口~~ | — | **已取消** | — |
 | E2E：portal 查看器黄金路径 | 5 工作流 | Playwright + 现有 helpers | 第 3–4 周 |
-| E2E：接入 Jenkins | 1 个 `Jenkinsfile` 阶段 | Jenkins groovy + Playwright JUnit 报告器 | 第 4 周 |
+| E2E：接入 Jenkins | 1 个 `Jenkinsfile` 阶段 | Jenkins groovy + Playwright JUnit 报告器 | **后期**（case 积累后） |
 | Composer 类别 3：全新组件（同目录） | 10 个新组件 | 每个构建时同目录编写 | Stage 2 期间 |
 | composer2026 第 2 层 E2E（外壳稳定后） | ~10 工作流 | Playwright + POM | Stage 2 之后 |
 
@@ -638,12 +628,11 @@ reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
 ## 11. 建议起步顺序
 
 1. **Vitest 迁移**（1–2 天）– 在正确技术栈上解锁后续全部单元测试扩展
-2. **E2E：实现 SREE portal spec 与代码缺口**（约 3–4 天）– 7 个 Markdown spec 用现有 AI 流水线变为真实 Playwright 测试；无需搭基础设施
-3. **E2E：portal 查看器黄金路径**（约 3–4 天）– 5 条浏览器工作流，使用现有 Testcontainers + helper
-4. **E2E：Jenkins 接入**（约 1 天）– 在 `Jenkinsfile` 增加 E2E 阶段；配置 Playwright JUnit 报告器
-5. **Stagehand Composer 冒烟搭建**（约 1 周）– composer2026 Stage 2 触及外壳容器前必须有安全网
-6. **试点：10 个 portal2026 Tier 1 组件** 使用组合方法 – 批量前验证单元测试工作流
-7. **批量 portal2026 Tier 1 + Tier 2**（约 340 组件）– 重设计落地前广泛单元覆盖
-8. **Composer 类别 1：内部不变组件 + 全部 composer 服务** – 与 portal2026 批量并行现在写；经受重构（`AssetTreeComponent`、`ComponentsPaneComponent`、`vs-formats-pane`、`VSBindingPane` 内部、所有 `*-property-dialog`、所有 `composer-binding-tree` 服务）
-9. **Composer 类别 3：每个新组件构建时同目录写 spec** – 顶栏、activity rail、Inspector 容器、`ChartBindingsSummary`、`TableBindingsProps`、浮动工具栏、空状态
-10. **composer2026 第 2 层 E2E** – composer2026 外壳稳定后
+2. **E2E：portal 查看器黄金路径**（约 3–4 天）– 5 条浏览器工作流，使用现有 Testcontainers + helper
+3. **Stagehand Composer 冒烟搭建**（约 1 周）– composer2026 Stage 2 触及外壳容器前必须有安全网
+4. **试点：10 个 portal2026 Tier 1 组件** 使用组合方法 – 批量前验证单元测试工作流
+5. **批量 portal2026 Tier 1 + Tier 2**（约 340 组件）– 重设计落地前广泛单元覆盖
+6. **Composer 类别 1：内部不变组件 + 全部 composer 服务** – 与 portal2026 批量并行现在写；经受重构（`AssetTreeComponent`、`ComponentsPaneComponent`、`vs-formats-pane`、`VSBindingPane` 内部、所有 `*-property-dialog`、所有 `composer-binding-tree` 服务）
+7. **Composer 类别 3：每个新组件构建时同目录写 spec** – 顶栏、activity rail、Inspector 容器、`ChartBindingsSummary`、`TableBindingsProps`、浮动工具栏、空状态
+8. **composer2026 第 2 层 E2E** – composer2026 外壳稳定后
+9. **E2E：Jenkins 接入**（约 1 天）– **后期**；待浏览器 E2E case 显著增加后再接入 `Jenkinsfile`

@@ -241,7 +241,7 @@ No existing code to test yet; write specs co-located as each is built:
 
 | Area | Design Impact | Test Action |
 |---|---|---|
-| Layer 2 E2E – fill SREE portal spec-code gap | 7 portal specs have Markdown plans but no TypeScript; infrastructure ready | **Write now** – use existing Testcontainers + Playwright setup |
+| Layer 2 E2E – ~~fill SREE portal spec-code gap~~ | ~~7 `repository-*.md` demos~~: Dashboard validated the AI pipeline; Markdown plans **deprecated and removed**, not scheduled | **Cancelled** |
 | Layer 2 E2E – portal2026 viewer golden paths | No browser tests for Portal viewer yet; single-component redesign won't break selectors | **Write now** – stable golden paths, infrastructure exists |
 | Layer 2 E2E – composer2026 golden paths | Shell rearchitecture makes selectors brittle today | **Defer** – write after composer2026 shell stabilizes |
 | Layer 3 Stagehand – Composer during redesign | Semantic intent survives structural churn | **Set up now** – 15-20 critical workflows as safety net |
@@ -268,17 +268,7 @@ No existing code to test yet; write specs co-located as each is built:
 
 #### Layer 2 Gaps
 
-**Spec-code gap (7 portal specs):** Markdown plans exist but TypeScript tests have not been generated:
-
-| Spec | Area |
-|---|---|
-| `sree/portal/repository-tree.md` | Tree navigation interactions |
-| `sree/portal/repository-favorites.md` | Favorites add/remove/open |
-| `sree/portal/repository-folder.md` | Folder create/rename/delete |
-| `sree/portal/repository-search.md` | Search and filter |
-| `sree/portal/repository-history.md` | Asset history view |
-| `sree/portal/repository-move.md` | Drag/drop asset move |
-| `sree/portal/repository-open-new-tab.md` | Open asset in new browser tab |
+**~~Spec-code gap (7 portal specs)~~ (deprecated):** Early demo Markdown plans (`repository-tree`, `repository-favorites`, `repository-search`, etc.) are **not scheduled**; Dashboard Playwright flow is already proven. Short-term E2E focuses on viewer golden paths; **Jenkins wiring deferred** (insufficient case volume).
 
 **Portal viewer golden paths (not yet written):** All 9 existing browser specs cover EM admin workflows. No browser tests exist for the Portal viewer:
 
@@ -488,9 +478,9 @@ Infrastructure (Playwright, Testcontainers, Docker Compose, helpers) is already 
 
 | Task | Effort |
 |---|---|
-| Implement 7 SREE portal spec-code specs (use `generate-browser-tests.prompt.md` AI pipeline) | ~3-4 days |
+| ~~Implement 7 SREE portal spec-code specs~~ | **Cancelled** (demo Markdown removed) |
 | Add 5 portal viewer golden-path browser specs (login, open VS, run report, export, create VS) | ~3-4 days |
-| Wire E2E into Jenkins pipeline (`Jenkinsfile`) with HTML reporter upload | ~1 day |
+| ~~Wire E2E into Jenkins pipeline~~ | **Deferred** (insufficient case volume; see later planning) |
 | **Total** | **~1-2 weeks** |
 
 ### Phase 5 – composer2026: Write Bucket 1 Now, Bucket 3 as Built
@@ -627,9 +617,9 @@ reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
 | portal2026 Tier 2 medium (untested) | ~210 | Combined (80% auto) | Week 3-5 |
 | portal2026 Tier 3 complex (untested) | ~64 | Sliced approach | Week 5-6 |
 | Composer Bucket 1: unchanged-internals components + all services | ~30 services + untested Bucket 1 components | Source reading + combined | Week 3-5 |
-| E2E: implement SREE portal spec-code gap | 7 specs | AI pipeline (`generate-browser-tests.prompt.md`) | Week 2-3 |
+| ~~E2E: implement SREE portal spec-code gap~~ | — | **Cancelled** | — |
 | E2E: portal viewer golden paths | 5 workflows | Playwright + existing helpers | Week 3-4 |
-| E2E: wire into Jenkins pipeline | 1 `Jenkinsfile` stage | Jenkins groovy + Playwright JUnit reporter | Week 4 |
+| E2E: wire into Jenkins pipeline | 1 `Jenkinsfile` stage | Jenkins groovy + Playwright JUnit reporter | **Later** (after case volume grows) |
 | Composer Bucket 3: net-new components (co-located) | 10 new components | Co-located as each is built | During Stage 2 |
 | composer2026 Layer 2 E2E (after shell stabilizes) | ~10 workflows | Playwright + POM | Post Stage 2 |
 
@@ -638,12 +628,11 @@ reporter: [['html'], ['junit', { outputFile: 'test-results/junit.xml' }]]
 ## 11. Recommended Starting Point
 
 1. **Vitest migration** (1-2 days) – unblocks all subsequent unit test expansion on the right stack
-2. **E2E: implement SREE portal spec-code gap** (~3-4 days) – 7 Markdown specs become real Playwright tests using the existing AI pipeline; no infrastructure setup needed
-3. **E2E: portal viewer golden paths** (~3-4 days) – 5 browser workflows using existing Testcontainers + helper infrastructure
-4. **E2E: Jenkins wiring** (~1 day) – add E2E stage to `Jenkinsfile`; configure Playwright JUnit reporter
-5. **Stagehand Composer smoke setup** (~1 week) – safety net must be in place before composer2026 Stage 2 touches the shell containers
-6. **Pilot: 10 portal2026 Tier 1 components** using combined method – validate the unit test workflow before batching
-7. **Batch portal2026 Tier 1 + Tier 2** (~340 components) – broad unit test coverage before redesign lands
-8. **Composer Bucket 1: unchanged-internals components + all composer services** – write now alongside portal2026 batch; these survive the rearchitecture (`AssetTreeComponent`, `ComponentsPaneComponent`, `vs-formats-pane`, `VSBindingPane` internals, all `*-property-dialog`s, all `composer-binding-tree` services)
-9. **Composer Bucket 3: write spec co-located as each new component is built** – top bar, activity rail, Inspector container, `ChartBindingsSummary`, `TableBindingsProps`, floating toolbar, empty state
-10. **composer2026 Layer 2 E2E** – after composer2026 shell is stable
+2. **E2E: portal viewer golden paths** (~3-4 days) – 5 browser workflows using existing Testcontainers + helper infrastructure
+3. **Stagehand Composer smoke setup** (~1 week) – safety net must be in place before composer2026 Stage 2 touches the shell containers
+4. **Pilot: 10 portal2026 Tier 1 components** using combined method – validate the unit test workflow before batching
+5. **Batch portal2026 Tier 1 + Tier 2** (~340 components) – broad unit test coverage before redesign lands
+6. **Composer Bucket 1: unchanged-internals components + all composer services** – write now alongside portal2026 batch; these survive the rearchitecture (`AssetTreeComponent`, `ComponentsPaneComponent`, `vs-formats-pane`, `VSBindingPane` internals, all `*-property-dialog`s, all `composer-binding-tree` services)
+7. **Composer Bucket 3: write spec co-located as each new component is built** – top bar, activity rail, Inspector container, `ChartBindingsSummary`, `TableBindingsProps`, floating toolbar, empty state
+8. **composer2026 Layer 2 E2E** – after composer2026 shell is stable
+9. **E2E: Jenkins wiring** (~1 day) – **later**; wire into `Jenkinsfile` after browser E2E case volume is substantial
