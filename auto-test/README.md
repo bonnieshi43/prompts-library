@@ -60,6 +60,12 @@
 - 若 **component 中强依赖 service**（复杂 HTTP、路由、多分支副作用等），在补全组件集成测试的同时，对 **service 本身** 可单独补充 **纯 Jest** 的单元测试（不绑 ATL），专注方法契约、分支与错误路径。
 - 生成与分析 service 测试时可参考 `front-end-testing/prompts/service-unit-test-generation-prompt.md` 中的步骤（先分析职责与风险，再写 `describe` / `it`，`it` 标题可用 `[Risk N]` 区分优先级）。
 
+### Jest → Vitest 迁移说明
+
+| 文件 | 作用 |
+|------|------|
+| [jest-vitest-migration-guide.zh-CN.md](./jest-vitest-migration-guide.zh-CN.md) | **工具链对照**：当前 Jest 双入口现状、Vitest 迁移范围（≠ 改名为 `.tl.spec.ts`）、API/CI 步骤、与 Epic-70095 审计的关联。 |
+
 ### 提示词与文档（`front-end-testing/prompts/`）
 
 | 文件 | 作用 |
@@ -76,6 +82,8 @@
 ```
 auto-test/
 ├── README.md                 # 本说明
+├── jest-vitest-migration-guide.zh-CN.md   # Jest 现状 / Vitest 迁移 / 工具链对比
+├── Epic-70095-test-migration-audit.zh-CN.md   # Epic 覆盖率与阶段规划（若已放入本目录）
 ├── java-unit/
 │   └── prompts/              # Java 端 unit case 生成提示词
 │       └── java-unit-test-generation-prompt.md
