@@ -24,9 +24,7 @@ Chart Plot Options is a configuration panel in the chart property dialog (Plot t
 | Waterfall | ✅ | ❌ (always rounds all corners, no user choice) |
 | Interval | ✅ | ❌ (always rounds all corners, no user choice) |
 | Gantt | ✅ | ❌ (always rounds all corners, no user choice) |
-| 3D Bar | ❌ | ❌ |
-| Funnel | ❌ | ❌ |
-| Line / Area / Pie / Map / Treemap / others | ❌ | ❌ |
+| others | ❌ | ❌ |
 
 
 **Date Comparison special case:** When a chart has Date Comparison enabled (non-value-only mode), `Bar Corner Radius` becomes visible even if the base chart type would normally hide it, because DC converts the chart to bars at runtime.
