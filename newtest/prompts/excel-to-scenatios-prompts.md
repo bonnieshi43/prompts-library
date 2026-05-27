@@ -6,17 +6,20 @@
 
 ## 一、输入分析与决策树
 
-### Step 1: 复杂度检测（仅记录，不阻断）
+### Step 1: 输入特征检测 → 路由
 
-检测以下特征（任一项为 Yes 则复杂）：
+扫描 Excel，按以下规则路由到对应处理步骤，**每条特征独立判断，不互斥**：
 
-| 特征 | 检测规则 | Yes/No |
-|------|---------|--------|
-| 外部引用 | 含「请看」「refer to」+ 其他文件名 | [ ] |
-| 层级嵌套 | 缩进表示父子关系 | [ ] |
-| Bug/Feature 标注 | 含 `Bug #/Feature #` 或 `#Bug` | [ ] |
-| 跨组件同步 | 同时涉及 EM、Portal| [ ] |
-| 安全变体 | 含 security / multi-tenant / org | [ ] |
+| 特征 | 检测规则 | 命中时执行 |
+|------|---------|-----------|
+| 外部引用 | 含「请看」「refer to」+ 其他文件名 | → Step 2 |
+| Bug/Feature 标注 | 含 `Bug #` / `Feature #` / `#Bug` / `#Feature` | → Step 3 |
+| 两套代码 | 含 `两套代码` / `two codebases` / `各自实现` / `#dual-codebase` | → Step 1.5.3 |
+| 安全 / 多租户变体 | 含 security / multi-tenant / org | → Step 1.5 |
+| 跳过标记 | 含「不需要测试」「skip」「意义不大」「optional」 | → Step 1.5.1 |
+| 缺少预期结果 | 有操作行但无预期结果列 | → Step 1.5.2 |
+
+未命中任何特征时，直接进入 Step 4（场景类型识别）。
 
 
 ### Step 1.5: Environment-Based Scenario Organization
@@ -26,10 +29,10 @@
 **环境定义与覆盖策略：**
 
 | 环境 | 覆盖策略 | 优先级 | 说明 |
-|------|---------|-------------|
+|------|---------|--------|------|
 | **security=true** | 完整 CRUD + 差异验证 | P1 | 主测试环境，覆盖所有通用行为 |
-| **security=false** | **仅差异验证**（Enabled 行为、存储位置、默认可见性 | P2 | 相同行为不重复测试|
-| **multi-tenant** | 完整 CRUD + 跨组织隔离验证 | P1 | 验证多租户环境下基础功能正常，不测试 clone org/ 组织权限 |
+| **security=false** | **仅差异验证**（Enabled 行为、存储位置、默认可见性） | P2 | 相同行为不重复测试 |
+| **multi-tenant** | 完整 CRUD + 跨组织隔离验证 | P1 | 验证多租户环境下基础功能正常，不测试 clone org / 组织权限 |
 
 **环境标签：** 每个场景标题后必须标注 `[env: security=false]` / `[env: security=true]` / `[env: multi-tenant]`。若无环境依赖，标注 `[env: none]`。
 
@@ -38,33 +41,33 @@
 - ❌ 禁止在一个场景中混合单租户和多租户操作
 
 **排除：**
-- Excel 中明确写了「切换 security 时会有一些问题，但这种行为没有很大意义」
+- 在同一个场景内动态切换 security 模式的测试（此类行为依赖不稳定的中间状态，不产生可验证断言）
 - 多租户特有操作：clone org、org filter 切换组织、跨组织权限分配（标注在 Related Module Tests）
 
 ### Step 1.5.1: Explicit Skip Detection
 
-检测 Excel 单元格中是否包含以下关键词（不区分大小写），命中则不生成场景，记录在 Clarification Needed：
+检测 Excel 单元格中是否包含以下关键词（不区分大小写），命中则不生成场景，计入 **Filtering Summary** 的 Discarded 计数，**不写入 Clarification Needed**：
 
 | 关键词 | 处理 |
 |--------|------|
-| "不需要测试" / "no need to test" | 跳过，记录原因 |
-| "跳过" / "skip" | 跳过，记录原因 |
-| "意义不大" / "not meaningful" / special | 跳过，记录原因 |
-| "视情况" + "不必须" / "optional" | 标注为 P3，不生成 |
+| "不需要测试" / "no need to test" | 跳过，Filtering Summary 注明原因 |
+| "跳过" / "skip" | 跳过，Filtering Summary 注明原因 |
+| "意义不大" / "not meaningful" | 跳过，Filtering Summary 注明原因 |
+| "视情况" + "不必须" / "optional" | 标注为 P3，不生成，Filtering Summary 注明原因 |
 
 
-### Step 1.5.2: Missing Expected Result Detection
+### Step 1.5.2: 缺少预期结果检测
 
-If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expected result (empty column or no keywords like "should/verify/expected")：
+若某行描述了操作（创建/编辑/删除/绑定/排序/查看）但无预期结果（列为空，或无"应该/验证/预期"等关键词）：
 
-- **可推断的常规操作**（如"保存"、"创建"、"删除"）：自动推断预期结果（如"保存成功，数据生效"），不进入 Clarification Needed
+- **可推断的常规操作**（如"保存"、"创建"、"删除"）：自动推断预期结果（如"保存成功，数据生效"），写入 `## Clarification Needed` 并提示完善 Excel matrix
 - **不可推断的模糊操作**（如"点击特殊按钮"、"执行自定义脚本"）：移入 `## Clarification Needed`
 
-**Exception:** Same action already has expected result elsewhere → skip.
+**例外：** 同一操作在其他行已有预期结果 → 跳过，不重复记录。
 
-***Output:** Add an entry to `## Clarification Needed` with:
-- Item: {action}
-- Location: {sheet/cell}
+**写入 `## Clarification Needed` 格式：**
+- Item: {操作描述}
+- Location: {sheet / 单元格}
 - Issue: "Missing expected result"
 
 
@@ -77,20 +80,17 @@ If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expe
 - 含 `#dual-codebase` 标记
 - 用户显式指定（通过输入变量 `Force-Two-Codebase: [module names]`）
 
-**行为变化：**
+**触发后场景分配规则（交叉测试策略）：**
 
-| 模块类型 | 默认行为（未触发） | 触发两套代码后 |
-|---------|-----------------|---------------|
-| CRUD 创建 | EM 创建 → Portal 同步验证 | EM 独立 + Portal 独立 |
-| CRUD 编辑 | 混合验证 | EM 独立 + Portal 独立 |
-| CRUD 删除 | 混合验证 | EM 独立 + Portal 独立 |
-| 跨模块同步 | 合并到 CRUD | **不生成**（两端独立测试） |
+| CRUD 操作 | 覆盖要求 | Sync check 方向 |
+|-----------|---------|----------------|
+| Create / Edit | EM 端和 Portal 端**各至少作为主操作端一次**；可根据 Excel 测试点密度合并或拆分，但不得遗漏任何一端的写路径 | 主操作端执行 → 另一端读验证 |
+| Delete | 任一端执行即可 | 执行端 → 另一端确认消失 |
+| EM-only feature | 纯 EM 场景，无需 Sync check | — |
+| Portal-only feature | 纯 Portal 场景，无需 Sync check | — |
+| 跨模块同步 | 不单独生成，内嵌在对应 CRUD 场景的 Sync check 步骤中 | — |
 
-
-**展示方式：**
-- 触发后，在**同一个输出文件内**，每个环境分组下按 **EM Endpoint** 和 **Portal Endpoint** 分子组
-- 不拆分成两个文件
-- 每个场景标题标注 `[EM]` 或 `[Portal]` 标签
+**场景标题格式：** 标题前加数据流方向前缀 `[EM→Portal]` 或 `[Portal→EM]`。
 
 ---
 
@@ -119,7 +119,7 @@ If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expe
 2. 若属于 → 融入相关主线场景，在步骤或断言后标注 `(Bug #XXXXX)` 或 `(Feature #XXXXX)`
 3. 若不属于（独立边缘场景）→ **不保留**
 
-**禁止：**: 为每个 Bug 单独创建场景（除非无法融入任何主线场景）
+**禁止：** 为每个 Bug 单独创建场景（除非无法融入任何主线场景）
 
 ---
 
@@ -135,7 +135,7 @@ If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expe
 | **删除级联** | 删除、cascade、阻止删除、依赖检查 | 保留 | P1 |
 | **环境差异** | security=true 与 false 的行为差异 | 生成差异验证场景，标注 `[env-diff]` | P1 |
 | **权限控制** | permission/grant/deny/clone organization /ACCESS 权限分配/ Security tab 操作 | **不生成场景**，标注在 Related Module Tests 中 | - |
-| **多租户操作** | 跨组织 visibility/clone organization/组织权限 | **不生成独立场景**，标注在 Related Module Tests 中 | - |
+| **多租户管理操作** | clone organization / 跨组织权限分配（非数据可见性验证） | **不生成独立场景**，标注在 Related Module Tests 中；org 内数据隔离 / 可见性验证属于正常 multi-tenant CRUD，归入 Step 1.5 的 Env: multi-tenant 区 | - |
 | **纯 UI** | 滚动条、拖拽、排序、悬浮效果、对话框动画 | **丢弃** | - |
 | **纯前端校验** | 密码长度、邮箱格式（仅前端提示） | **丢弃** | - |
 | **业务边界** | 特殊字符/空值/重名/超长（后端拒绝且无业务影响） | **丢弃** | - |
@@ -144,10 +144,8 @@ If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expe
 
 | 类型 | 默认处理 | 触发两套代码后 |
 |------|---------|---------------|
-| **CRUD** | 合并同步验证 | **拆分**：EM 独立 CRUD + Portal 独立 CRUD，各自生成创建/编辑/删除场景 |
-| **跨模块同步** | 合并到 CRUD | **不生成**（两端独立测试，不需要同步验证） |
-| **环境差异** | 正常生成 | 正常生成，但 EM 和 Portal 各自独立验证 |
-| **多租户** | 正常生成 | 正常生成，但 EM 和 Portal 各自独立验证 |
+| **CRUD** | 合并同步验证 | 完全按 Step 1.5.3 交叉测试策略 |
+| **多租户** | 正常生成 | 同上，EM 和 Portal 独立写路径各自通过交叉策略覆盖 |
 
 ---
 
@@ -178,15 +176,13 @@ If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expe
 1. 每个场景标题后必须标注环境标签 `[env: security=false/true/multi-tenant]` 和类型标签
 2. 涉及 EM ↔ Portal 双向操作的场景，步骤中必须包含 `**Sync check:**`
 3. Sync check 格式：`**Sync check:** {目标位置} — {预期状态}`
-4. 触发两套代码时：不生成 Sync check，EM 和 Portal 各自独立验证
+4. 触发两套代码时：EM 和 Portal 交叉验证CURD验证确保两端都覆盖，也需要验证两端同步
 
 ---
 
-### 输出结构选择
+### 输出结构
 
-根据 Step 1.5.3 的检测结果，选择以下两种输出结构之一：
-
-#### 结构 A：未触发两套代码（默认，如 Dashboard）
+所有模块使用统一结构。触发两套代码时，Scenario Overview 和 Scenarios 区域按 Step 1.5.3 交叉测试策略填写，其余区域不变。
 
 
 ```markdown
@@ -253,7 +249,7 @@ last-updated: YYYY-MM-DD
 
 | ID | Priority | Scenario | Key Business Assertion |
 |----|----------|----------|----------------------|
-| TC-001 | P1 | Create {object} | ）| |
+| TC-001 | P1 | Create {object} | {key assertion} |
 
 
 ### Env: security=false (仅差异验证)
@@ -292,12 +288,12 @@ last-updated: YYYY-MM-DD
 
 ### Env: security=false
 
-#### TC-00X Scenario Name `P1` `[env: security=true]` `[Feature]`
+#### TC-00X Scenario Name `P1` `[env: security=false]` `[Feature]`
 
 **Scope:** {module boundary}
-**Validates rule:** {permission affects visibility}
+**Validates rule:** {behavior difference under security=false}
 
-**Pre-conditions:** security=true, {login role}
+**Pre-conditions:** security=false, {login role}
 
 **Steps:**
 1. [action]
