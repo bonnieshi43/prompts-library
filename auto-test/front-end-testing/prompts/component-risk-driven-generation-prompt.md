@@ -14,6 +14,9 @@ Read the files before proceeding if not already in context.
 **Reference test file (required)**: determines output file naming (e.g. `.tl.spec.ts`),
 test-run command, and import style. Ask for one if not provided.
 
+**Current pass (optional)**: `Pass 1`, `Pass 2`, or `Pass 3`.
+If not specified, begin with Stage 1.
+
 **Optional**: focus areas for this round, known bugs.
 
 ---
@@ -56,22 +59,88 @@ describe("Group 1 — someMethod", () => {
 
 ---
 
-# Stage A — Contract Scan (internal)
+# Stage 1 — Pre-scan
 
-All analysis in this stage is internal reasoning — do not output intermediate lists.
+**Run before any analysis or test generation. Output the result and wait for confirmation.**
 
-**A0 — Scope Pre-check**
+## 1.1 Measure
 
-**①** If the scope is a service / API client rather than a UI component, apply service-layer
-analysis: map each exported function, check singleton delegation, ID persistence
-(localStorage read → generate-if-missing → write back), and URL construction. Skip to Stage B.
+Compute internally, then report:
 
-**②** Search existing tests for `vi.mock` / `jest.mock` stubs of this component. If it only
-appears as a mock with no direct test, treat it as zero-coverage and highest priority.
+| Metric | Definition |
+|--------|-----------|
+| `logic_lines` | Total lines minus imports, comments, and pure template strings |
+| `dispatch_points` | Methods where a single field (e.g. `item.type`) drives 3+ distinct code paths |
+| `async_zones` | Count of HTTP calls + WebSocket subscriptions + event-bus subscriptions |
 
-**③ Handler inventory**: list every `handle*` / `on*` callback, WebSocket `subscribe` /
+## 1.2 Classify
+
+| Class | Criteria | Strategy |
+|-------|----------|----------|
+| **S** | `logic_lines` < 300 AND `dispatch` ≤ 1 AND `async` ≤ 2 | Single pass |
+| **M** | `logic_lines` 300–500 OR `dispatch` = 2 OR `async` 3–5 | Single pass |
+| **L** | `logic_lines` > 500 OR `dispatch` ≥ 3 OR `async` > 5 | Multi-pass |
+
+## 1.3 Class S or M — single pass
+
+State the class and metrics, then say:
+
+> "Class [S/M] — proceeding with single pass."
+
+Output file: `ComponentName.tl.spec.ts`
+
+Apply Stage 2 to the full file, then proceed to Stage 3.
+
+## 1.4 Class L — build pass plan
+
+Assign every method to exactly one pass. No method left unassigned.
+
+**Pass 1 — Risk** (`ComponentName.risk.tl.spec.ts`)
+Methods containing: async race conditions, sync-overrides-async, batch operations,
+state inconsistency across `await`, destructive actions (delete / move / overwrite).
+
+**Pass 2 — Interaction** (`ComponentName.interaction.tl.spec.ts`)
+Methods containing: router navigation, HTTP data loading, lifecycle hooks
+(`ngOnInit` / `useEffect`), user-triggered flows (search, click, drag-drop, context menu).
+
+**Pass 3 — Display** (`ComponentName.display.tl.spec.ts`)
+Methods containing: label computation, icon selection, type guards, pure conditional
+display logic with no side effects.
+**Only create Pass 3 when `dispatch_points` ≥ 3.** Otherwise merge into Pass 2.
+
+Output the plan as a table:
+
+| Pass | File | Methods in scope | Reason |
+|------|------|-----------------|--------|
+| 1 | ComponentName.risk.tl.spec.ts | method1, method2 … | async race / destructive |
+| 2 | ComponentName.interaction.tl.spec.ts | method3, method4 … | navigation / loading |
+| 3 | ComponentName.display.tl.spec.ts | method5, method6 … | polymorphic display |
+
+State the class and metrics, then stop and wait for the user to specify which pass to run.
+
+## 1.5 Scope restriction (Class L — applied at start of each pass)
+
+- **In scope**: only the methods listed for the current pass.
+- **Out of scope**: all other methods — treat as already covered, generate no tests.
+- **Shared helper**: after Pass 1, compare `renderComponent()` setup with subsequent passes.
+  If identical → extract to `ComponentName.test-helpers.ts` and import from it.
+  If different → keep a local helper per file.
+
+---
+
+# Stage 2 — Analysis (internal)
+
+All reasoning in this stage is internal — do not output intermediate lists.
+Apply only to in-scope methods (Stage 1.5 for Class L; full file for S/M).
+
+## 2.1 Scope pre-check
+
+Treat the component as zero-coverage regardless of existing test files.
+Analyze from source only — do not read existing spec files to infer coverage.
+
+**Handler inventory**: list every `handle*` / `on*` callback, WebSocket `subscribe` /
 `onmessage` / disconnect handler, and `sessionStorage` / `localStorage` access point.
-Every item must map to a scenario in Stage C or be explicitly skipped with a reason.
+Every item must map to a test scenario or be explicitly skipped with a reason.
 
 Tag every identified rule:
 
@@ -79,45 +148,42 @@ Tag every identified rule:
 |-----|---------|
 | **[SA]** | What the code actually does |
 | **[SB]** | What the UI / props / comments promise users |
-| **[SC]** | Platform / ARIA conventions users expect without documentation (keyboard shortcuts, focus management, touch equivalents) |
+| **[SC]** | Platform / ARIA conventions users expect without documentation |
 
-**[SA] ≠ [SB] = highest-priority bug candidate.**
-**[SC] violation = design defect.** Missing [SC] behavior is at minimum Risk 2; if it causes
-data loss or silent wrong submission it is Risk 3.
+**[SA] ≠ [SB]** = highest-priority bug candidate.
+**[SC] violation** = design defect; Risk 2 minimum, Risk 3 if it causes data loss or silent wrong submission.
 
-**A1 — UI promises**: `disabled`, `required`, state-dependent text. Can guards be bypassed?
+## 2.2 Contract checks
 
-**A1b — Three-state coverage**: For every async load or long-running task:
-- **loading** — destructive actions disabled
-- **error** — user-visible message; retry / cancel accessible
-- **empty / ready** — correct content or empty-state shown
+**UI promises** — `disabled`, `required`, state-dependent text. Can guards be bypassed?
+
+**Three-state coverage** — for every async load or long-running task:
+- loading: destructive actions disabled
+- error: user-visible message; retry / cancel accessible
+- empty / ready: correct content or empty-state shown
 
 Missing state → Risk 2 minimum. Loading state that permits destructive action → Risk 3.
 
-**A2 — Multiple paths to same goal**: mouse / keyboard / drag — do all paths share the same
-validation? Keyboard-only paths (Enter, Escape, arrow keys) frequently bypass mouse-path guards.
+**Multiple paths to same goal** — mouse / keyboard / drag share the same validation?
+Keyboard-only paths (Enter, Escape, arrow keys) frequently bypass mouse-path guards.
 
-**A3 — Reset / clear state**: enumerate all layers — framework state, DOM (`input.value`,
-scroll, focus), browser state, parent/global state.
+**Reset / clear state** — framework state, DOM (`input.value`, scroll, focus),
+browser state, parent/global state.
 
-**A4 — Fragile implementation**:
+## 2.3 Fragile patterns
+
 - Stale state after `await`; missing `setState(prev => …)` pattern
-- Same field validated in multiple places inconsistently (e.g. trim in one path, not another)
+- Same field validated inconsistently across paths (e.g. trim in one path, not another)
 - Boundary inputs: empty string, malformed, multi-dot filenames
 - Batch partial failure: partial API success must separate succeeded / failed items in UI state
+- Async load sets state after selection / props may have changed → missing stale-response guard → Risk 3
+- Effect opens WebSocket / event-bus / `setInterval` without unmount cleanup → Risk 3
 
-**A5 — Async ownership**:
-- If an async load sets state after selection / props may have changed, require a stale-response
-  guard — missing guard is Risk 3.
-- For every effect that opens a WebSocket, event-bus subscription, or `setInterval`, require
-  four scenarios: open success, data received, error / disconnect, **unmount cleanup**
-  (no state update after unmount, no leaked listener). Missing cleanup → Risk 3.
+## 2.4 Risk score + scenario design
 
----
+Score each finding, then design scenarios — do not output either list.
 
-# Stage B — Risk Score + Filter (internal)
-
-Score each rule internally and decide — do not output the scored list.
+**Risk levels:**
 
 | Level | Meaning |
 |-------|---------|
@@ -128,12 +194,10 @@ Score each rule internally and decide — do not output the scored list.
 Risk 3 → all in. Risk 2 → functional-path only. Risk 1 → skip unless tied to current change.
 Confirmed bug → `it.fails(...)`; suspected bug → header comment only, no case.
 
----
+**Scenario expansion per risk:**
 
-# Stage C — Scenario Design (internal)
-
-| Risk | Expansion |
-|------|-----------|
+| Risk | Cases |
+|------|-------|
 | **3** | Happy + Error + Boundary; add Stress if concurrent interaction is possible |
 | **2** | Happy + one key Error |
 | **1** | One case max, or skip |
@@ -142,9 +206,9 @@ Mark regression-sensitive scenarios with 🔁.
 
 ---
 
-# Stage D — Test Output
+# Stage 3 — Output
 
-**Case limits:**
+## 3.1 Case limits
 
 | Group risk | Max cases per group |
 |------------|---------------------|
@@ -157,13 +221,11 @@ Mark regression-sensitive scenarios with 🔁.
 If a group exceeds its cap, delete the lowest-value or most-duplicated cases first.
 Confirmed bugs → `it.fails(...)`, do not count toward caps.
 
----
-
-## D1 — File Header
+## 3.2 File header
 
 ```ts
 /**
- * ComponentName — Testing Library style
+ * ComponentName — [Pass N: Risk | Interaction | Display | single pass]
  *
  * Risk-first coverage:
  *   Group 1 [Risk 3]  — methodName: one-sentence contract summary
@@ -174,10 +236,12 @@ Confirmed bugs → `it.fails(...)`, do not count toward caps.
  *
  * Suspected bugs (header only):
  *   Suspicion A — <name>: <evidence gap>.
+ *
+ * Out of scope this pass: [method list — covered in ComponentName.risk / .interaction / .display]
  */
 ```
 
-## D2 — Per-case Comment
+## 3.3 Per-case comment
 
 ```ts
 // 🔁 Regression-sensitive: <why this breaks silently during refactoring>
@@ -185,18 +249,11 @@ Confirmed bugs → `it.fails(...)`, do not count toward caps.
 it("should ...", async () => { ... });
 ```
 
-## D3 — Multi-contract Assertion
+## 3.4 Multi-contract assertion
 
 When asserting an error or invalid outcome, also assert the specific flag / element that caused
 it and confirm no false-positive sibling is active — "right output, wrong reason" is still a bug.
 
-## D4 — Verify
+## 3.5 Verify
 
 Run the test command scoped to the new file. Fix any compile or import errors before reporting done.
-
-## D5 — Coverage Pass (when needed)
-
-If the component exceeds **400 lines** or has **polymorphic item dispatch**, and uncovered
-branches remain after this pass, continue with `component-path-coverage-generation-prompt.md`.
-Pass the file produced in D4 as the `Existing spec files` input so the coverage pass skips
-already-covered scenarios.
