@@ -31,7 +31,7 @@
 | **security=false** | **仅差异验证**（Enabled 行为、存储位置、默认可见性 | P2 | 相同行为不重复测试|
 | **multi-tenant** | 完整 CRUD + 跨组织隔离验证 | P1 | 验证多租户环境下基础功能正常，不测试 clone org/ 组织权限 |
 
-**环境标签：** 每个场景标题后必须标注 `[env: security=false]` / `[env: security=true]` / `[env: multi-tenant]`
+**环境标签：** 每个场景标题后必须标注 `[env: security=false]` / `[env: security=true]` / `[env: multi-tenant]`。若无环境依赖，标注 `[env: none]`。
 
 **不混合原则：**
 - ❌ 禁止在一个场景中切换 security 值
@@ -41,7 +41,7 @@
 - Excel 中明确写了「切换 security 时会有一些问题，但这种行为没有很大意义」
 - 多租户特有操作：clone org、org filter 切换组织、跨组织权限分配（标注在 Related Module Tests）
 
-### Step 1.6: Explicit Skip Detection
+### Step 1.5.1: Explicit Skip Detection
 
 检测 Excel 单元格中是否包含以下关键词（不区分大小写），命中则不生成场景，记录在 Clarification Needed：
 
@@ -51,6 +51,46 @@
 | "跳过" / "skip" | 跳过，记录原因 |
 | "意义不大" / "not meaningful" / special | 跳过，记录原因 |
 | "视情况" + "不必须" / "optional" | 标注为 P3，不生成 |
+
+
+### Step 1.5.2: Missing Expected Result Detection
+
+If a row describes an action (Create/Edit/Delete/Bind/Sort/View) but has no expected result (empty column or no keywords like "should/verify/expected")：
+
+- **可推断的常规操作**（如"保存"、"创建"、"删除"）：自动推断预期结果（如"保存成功，数据生效"），不进入 Clarification Needed
+- **不可推断的模糊操作**（如"点击特殊按钮"、"执行自定义脚本"）：移入 `## Clarification Needed`
+
+**Exception:** Same action already has expected result elsewhere → skip.
+
+***Output:** Add an entry to `## Clarification Needed` with:
+- Item: {action}
+- Location: {sheet/cell}
+- Issue: "Missing expected result"
+
+
+### Step 1.5.3: Two-Codebase Detection
+
+**目的：** 检测模块是否使用两套独立代码（EM 和 Portal 各自实现），决定 CRUD 测试策略。
+
+**触发条件：** Excel 中检测到以下任一信号（不区分大小写）：
+- 含 `两套代码` / `two codebases` / `各自实现` / `EM和Portal代码不同`
+- 含 `#dual-codebase` 标记
+- 用户显式指定（通过输入变量 `Force-Two-Codebase: [module names]`）
+
+**行为变化：**
+
+| 模块类型 | 默认行为（未触发） | 触发两套代码后 |
+|---------|-----------------|---------------|
+| CRUD 创建 | EM 创建 → Portal 同步验证 | EM 独立 + Portal 独立 |
+| CRUD 编辑 | 混合验证 | EM 独立 + Portal 独立 |
+| CRUD 删除 | 混合验证 | EM 独立 + Portal 独立 |
+| 跨模块同步 | 合并到 CRUD | **不生成**（两端独立测试） |
+
+
+**展示方式：**
+- 触发后，在**同一个输出文件内**，每个环境分组下按 **EM Endpoint** 和 **Portal Endpoint** 分子组
+- 不拆分成两个文件
+- 每个场景标题标注 `[EM]` 或 `[Portal]` 标签
 
 ---
 
@@ -99,7 +139,15 @@
 | **纯 UI** | 滚动条、拖拽、排序、悬浮效果、对话框动画 | **丢弃** | - |
 | **纯前端校验** | 密码长度、邮箱格式（仅前端提示） | **丢弃** | - |
 | **业务边界** | 特殊字符/空值/重名/超长（后端拒绝且无业务影响） | **丢弃** | - |
-| **CRUD（核心）** | 创建/编辑/删除/排序/绑定 Viewsheet — 不涉及权限判断 | 保留 | P1 |
+
+**两套代码时的特殊处理（触发 Step 1.5.3 后）：**
+
+| 类型 | 默认处理 | 触发两套代码后 |
+|------|---------|---------------|
+| **CRUD** | 合并同步验证 | **拆分**：EM 独立 CRUD + Portal 独立 CRUD，各自生成创建/编辑/删除场景 |
+| **跨模块同步** | 合并到 CRUD | **不生成**（两端独立测试，不需要同步验证） |
+| **环境差异** | 正常生成 | 正常生成，但 EM 和 Portal 各自独立验证 |
+| **多租户** | 正常生成 | 正常生成，但 EM 和 Portal 各自独立验证 |
 
 ---
 
@@ -113,6 +161,8 @@
 | `[Cross-Module]` | 跨模块数据同步 |
 | `[Multi-Tenant]` | 多租户操作 |
 | `[Feature]` | 可配置 Feature |
+| `[EM]` | EM 端执行（仅当触发两套代码时使用） |
+| `[Portal]` | Portal 端执行（仅当触发两套代码时使用） |
 | `[env: security=false]` | 安全关闭环境 |
 | `[env: security=true]` | 安全开启环境 |
 | `[env: multi-tenant]` | 多租户环境 |
@@ -125,9 +175,19 @@
 **Language:** English
 
 **强制要求：**
-1. 每个场景标题后必须标注环境标签 `[env: security=false/true/multi-tenant]` 和类型标签 `[CRUD]` / `[env-diff]` / `[Cross-Module]`
-2. 涉及 EM ↔ Portal 双向操作的场景，必须在步骤中包含 `**Sync check:**`
+1. 每个场景标题后必须标注环境标签 `[env: security=false/true/multi-tenant]` 和类型标签
+2. 涉及 EM ↔ Portal 双向操作的场景，步骤中必须包含 `**Sync check:**`
 3. Sync check 格式：`**Sync check:** {目标位置} — {预期状态}`
+4. 触发两套代码时：不生成 Sync check，EM 和 Portal 各自独立验证
+
+---
+
+### 输出结构选择
+
+根据 Step 1.5.3 的检测结果，选择以下两种输出结构之一：
+
+#### 结构 A：未触发两套代码（默认，如 Dashboard）
+
 
 ```markdown
 ---
@@ -160,39 +220,29 @@ last-updated: YYYY-MM-DD
 > 手工测试执行指引。详细场景见下方 Scenarios，本部分仅提供方向和重点。
 
 ### 核心规则 (一句话理解)
-- **Global Dashboard** = 管理员在 EM 创建，Portal 只读
-- **User Dashboard** = 用户在 Portal 创建，两端都可编辑
-- **security=true** → Portal 可见性由权限(ACCESS)控制
-- **security=false** → Portal 可见性由 `Enable` 复选框控制
+{key business rules}
 
 ### 测试重点 (按优先级)
 
 | 优先级 | 测试方向 | 关键验证点 |
 |--------|----------|-----------|
 | P1 | 完整 CRUD | 创建/编辑/删除/排序后，EM + Portal 两端同步 |
-| P1 | 跨端同步 | EM 改 → Portal 变；Portal 改 → EM 变 |
-| P1 (多租户) | 组织隔离 | Site admin 为 OrgB 创建的 dashboard，只能被 OrgB 管理 |
-| P2 | 环境差异 (security=false) | User Dashboard 存于 `anonymous` 文件夹；`Enable` 直接控制可见性 |
+
 
 ### 容易出问题的地方 (测试时重点关照)
-
-1. **Clone 组织后**：dashboard 资源被克隆，但 `Enable` 状态**不应被克隆** (Bug #69347)
-2. **私人 Viewsheet 跨用户编辑**：User Dashboard 绑定私人 vs，其他 admin 在 EM 看不到该 vs (Bug #69468)
-3. **排序同步**：EM Arrange 面板调整顺序 → Portal 必须立即同步，刷新后不丢失
-4. **`Enable` 语义混淆**：Portal Arrange 中的 `Enable` 只控制 Portal 显示，不改变 EM 中的 `Enable` 值
+{problem areas}
 
 ### 必做联动模块测试
 
 | 联动模块 | 测试场景 | 最少用例数 |
 |----------|----------|-----------|
 | Security / 权限 | security=true 时，对 Global Dashboard 做 grant/deny ACCESS | 2 |
-| Organization / Clone Org | 克隆组织后，验证 Enable 状态重置为 false | 1 (等 bug 修复) |
-| Org Filter | Site admin 切换组织后创建/编辑 dashboard | 2 |
-| Viewsheet | User Dashboard 绑定 global vs + 私人 vs 两种类型 | 2 |
 
 ---
 
 ## Environment Differences
+
+{security=true vs false differences, if any}
 
 ---
 
@@ -200,19 +250,25 @@ last-updated: YYYY-MM-DD
 
 ### Env: security=true (完整 CRUD + 差异验证)
 
+
 | ID | Priority | Scenario | Key Business Assertion |
 |----|----------|----------|----------------------|
-| TC-001 | P1 | [summary] | [assertion] |
+| TC-001 | P1 | Create {object} | ）| |
+
 
 ### Env: security=false (仅差异验证)
 
 | ID | Priority | Scenario | Key Business Assertion |
 |----|----------|----------|----------------------|
 
+
 ### Env: multi-tenant (完整 CRUD)
+
 
 | ID | Priority | Scenario | Key Business Assertion |
 |----|----------|----------|----------------------|
+| TC-201 | P1 | ... | ... |
+
 
 ---
 
@@ -282,7 +338,7 @@ last-updated: YYYY-MM-DD
 
 | Item | Location | Issue |
 |------|----------|-------|
-| [description] | [sheet/cell] | [what's unclear] |
+| {action} | {sheet/cell} | Missing expected result |
 
 ---
 
