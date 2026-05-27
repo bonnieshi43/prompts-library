@@ -1,0 +1,33 @@
+services:
+  mysql-wiz:
+    image: mysql:8.0
+    container_name: mysql-annotation-test
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: test123456
+      MYSQL_DATABASE: annotation_test
+      MYSQL_USER: tester
+      MYSQL_PASSWORD: tester123
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+08:00
+      - --local-infile=1
+      - --secure-file-priv=
+    volumes:
+      - mysql_annotation_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+      - ./hr_analytics.sql:/docker-entrypoint-initdb.d/02-hr_analytics.sql:ro
+      - ./HR_Analytics.csv:/tmp/HR_Analytics.csv:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-ptest123456"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  mysql_annotation_data:
