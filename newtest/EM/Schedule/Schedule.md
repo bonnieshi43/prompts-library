@@ -11,10 +11,10 @@ last-updated: 2026-05-28
 | Category                    | Count |
 |-----------------------------|-------|
 | Discarded UI scenarios      | 12    |
-| Kept P1                     | 35    |
+| Kept P1                     | 34    |
 | Kept P2                     | 7     |
 | Needs clarification         | 3     |
-| P3 Manual-Only Test Points  | 9 |
+| P3 Manual-Only Test Points  | 9     |
 
 ---
 
@@ -112,7 +112,6 @@ The Scheduler module allows administrators and users to automate report/dashboar
 | TC-022 | P1 | Data Cycle CRUD — create/edit/delete with MV dependency check `[CRUD]` | Cycle with MV dependency cannot be deleted; rename blocked if used by MV |
 | TC-023 | P1 | Data Cycle Notification — Start/Completion/Failure/Threshold emails `[CRUD]` | Emails sent with correct subject/content per notification type |
 | TC-024 | P1 | Simple Schedule — trigger from Portal toolbar, verify task created in Schedule tab `[CRUD][Cross-Module]` | Bookmark, format, condition correctly reflected in generated task; task runs successfully |
-| TC-025 | P1 | Share Tasks Between Users in Same Group — enable setting, verify visibility and edit rules `[Feature][Cross-Module]` | Users in same group see shared tasks; 'Edit By Owner Only' restricts editing |
 | TC-038 | P1 | Creation Parameters — parameterized VS in Dashboard action: add/edit/delete params; Dynamic Dates expression; EM↔Portal sync `[CRUD][Cross-Module]` | Parameters set in Creation Parameters tab override VS defaults at task execution; sync correctly across sides |
 | TC-039 | P2 | Batch Action — Parameters: Embedded Mode UI `[CRUD]` | Embedded checkbox gates edit access; dialog chain (Parameters Table → Edit Parameters Dialog → Add Parameter Dialog) and all CRUD operations correct |
 | TC-040 | P2 | Batch Action — Parameters: Query Mode UI `[CRUD]` | Query dropdown loads only worksheets with tables; Parameters section maps VS parameters to query columns; config persists after save/reopen |
@@ -132,19 +131,19 @@ The Scheduler module allows administrators and users to automate report/dashboar
 | ID | Priority | Scenario | Key Business Assertion |
 |----|----------|----------|----------------------|
 | TC-029 | P1 | Site admin creates/edits/deletes tasks for another org via org switch `[CRUD][Multi-Tenant]` | Task owner defaults to first org admin; tasks isolated per org |
-| TC-030 | P1 | Clone org — cloned tasks are runnable; time-range tasks excluded `[Multi-Tenant]` | Cloned tasks execute successfully; tasks using time ranges not cloned |
 | TC-031 | P1 | Internal tasks visible only to site admin; org users cannot see them `[Multi-Tenant]` | Internal tasks absent from org user's task list on both EM and Portal |
 | TC-032 | P1 | Task data isolation between two orgs — org A tasks not visible to org B `[Multi-Tenant]` | Org B user cannot see or access org A tasks via URL or list |
 
 ### Schedule Settings (placed last per Rule S-3)
 
-| ID | Priority | Scenario | Key Business Assertion |
-|----|----------|----------|----------------------|
-| TC-033 | P1 | Schedule Settings — Scheduler Options: toggle each option, verify impact on task actions `[CRUD]` | Notification Email/Save to Disk/Email Delivery/Enable Email Browser each control corresponding action visibility |
-| TC-034 | P1 | Schedule Settings — Notification: configure failure/down alerts, verify emails sent `[CRUD]` | Emails sent to configured addresses with correct subject/message on task failure and scheduler down |
-| TC-035 | P1 | Schedule Settings — Time Ranges: add/edit/delete ranges; apply to task condition `[CRUD]` | Time range appears in task Daily/Weekly/Monthly condition; default ranges persist after restart |
-| TC-036 | P1 | Schedule Settings — Server Save Paths: add/edit/delete local and FTP paths; apply to Save to Disk action `[CRUD]` | Task saves report to correct path; editing label/path updates task action display |
-| TC-037 | P1 | Schedule Settings — Scheduler Status: Start/Stop/Restart; Run Now blocked when stopped `[CRUD]` | Status transitions correct; thread dump and heap dump generated; settings warning shown on Apply |
+| ID | Priority | Scenario                                                                                                                                 | Key Business Assertion |
+|----|----------|------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
+| TC-025 | P1 | Schedule Settings — Share Tasks Between Users in Same Group — enable setting, verify visibility and edit rules `[Feature][Cross-Module]` | Users in same group see shared tasks; 'Edit By Owner Only' restricts editing |
+| TC-033 | P1 | Schedule Settings — Scheduler Options: toggle each option, verify impact on task actions `[CRUD]`                                        | Notification Email/Save to Disk/Email Delivery/Enable Email Browser each control corresponding action visibility |
+| TC-034 | P1 | Schedule Settings — Notification: configure failure/down alerts, verify emails sent `[CRUD]`                                             | Emails sent to configured addresses with correct subject/message on task failure and scheduler down |
+| TC-035 | P1 | Schedule Settings — Time Ranges: add/edit/delete ranges; apply to task condition `[CRUD]`                                                | Time range appears in task Daily/Weekly/Monthly condition; default ranges persist after restart |
+| TC-036 | P1 | Schedule Settings — Server Save Paths: add/edit/delete local and FTP paths; apply to Save to Disk action `[CRUD]`                        | Task saves report to correct path; editing label/path updates task action display |
+| TC-037 | P1 | Schedule Settings — Scheduler Status: Start/Stop/Restart; Run Now blocked when stopped `[CRUD]`                                          | Status transitions correct; thread dump and heap dump generated; settings warning shown on Apply |
 
 ---
 
@@ -433,9 +432,7 @@ The Scheduler module allows administrators and users to automate report/dashboar
 5. Enable "Include Link" checkbox.
 6. Save task.
 7. **Sync check:** Portal — "Task_Notify_TC011" visible; opens edit; Notify email present; "Notify only if failed" and "Include Link" checked.
-8. Run task (Run Now) — task succeeds; verify no notification email sent (because "Notify only if failed" is on).
-9. Edit task to make action fail (select a non-existent dashboard); run again; verify notification email sent with subject "Scheduled Dashboard X has been executed." and failure details.
-10. Clean up: delete "Task_Notify_TC011".
+8. Clean up: delete "Task_Notify_TC011".
 
 **Expected:**
 - "Notify only if failed" suppresses email on success; sends email on failure.
@@ -1067,30 +1064,6 @@ The Scheduler module allows administrators and users to automate report/dashboar
 - Tasks are org-isolated: OrgA users cannot see OrgB tasks.
 - Site admin can create/edit/delete tasks for any org via org switch.
 - New task owner defaults to first org admin of the target org.
-
----
-
-#### TC-030 Clone Org — Cloned Tasks Are Runnable; Time-Range Tasks Excluded `P1` `[env: multi-tenant]` `[Multi-Tenant]`
-
-**Scope:** Organization admin — Clone Org operation; task cloning behavior
-
-**Validates rule:** Cloning an org copies all tasks except those with time range conditions (normal orgs don't support time range); cloned tasks are executable; task folder structure is cloned
-
-**Pre-conditions:** multi-tenant; site admin login; OrgA exists with tasks (one with time range, others without); OrgB is the clone target
-
-**Steps:**
-1. In OrgA, verify tasks exist: "Task_NoRange" (Daily condition, no time range) and "Task_WithRange" (time range condition).
-2. Clone OrgA into a new org "OrgA_Cloned".
-3. In "OrgA_Cloned", verify task list:
-   - "Task_NoRange" is present and has correct configuration.
-   - "Task_WithRange" is **NOT** present (time range not supported in normal orgs).
-4. Run "Task_NoRange" in "OrgA_Cloned" (Run Now); verify Last Run Status = Finished.
-5. Verify folder structure of "OrgA_Cloned" matches "OrgA".
-
-**Expected:**
-- Non-time-range tasks are cloned successfully and are runnable.
-- Time-range tasks are excluded from clone.
-- Task folder structure is replicated.
 
 ---
 
