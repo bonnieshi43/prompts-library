@@ -1,101 +1,101 @@
-# InetSoft Chart 知识库（精简测试版）
-//本文档用于提供 Chart 模块全局测试地图。若 PR 涉及 Tooltip、Stack、Drill Down、Date Comparison、Export 等专项功能，
-  应同时补充对应专题知识库或者产品对应的doc文档。
+# InetSoft Chart Knowledge Base (Lite Test Version)
+<!-- This document provides a global test map for the Chart module. If PR involves specific functions such as Tooltip, Stack, Drill Down, Export, etc., corresponding special knowledge base or product documentation should be supplemented. -->
 
-## 目录
-1. [图表类型](#图表类型)
-2. [核心属性配置](#核心属性配置)
-3. [数据绑定](#数据绑定)
-4. [高级功能](#高级功能)
-5. [交互功能](#交互功能)
-6. [测试要点](#测试要点)
-
----
-
-## 图表类型
-
-### 基础图表（必测）
-| 图表类型 | 用途 | 关键属性 |
-|---------|------|---------|
-| Bar Chart | 分类数据比较 | Stack, Corner Radius(0-0.5), Round All Corners |
-| Stacked Bar Chart | 堆叠条形图 | Stack 模式, Stack Measures |
-| Line Chart | 时间趋势 | Smooth Lines, Show Points, Dashed Line for Gaps |
-| Stacked Line Chart | 堆叠折线图 | Stack 模式 |
-| Area Chart | 累积趋势 | Stack, Smooth Lines |
-| Stacked Area Chart | 堆叠面积图 | Stack 模式 |
-| Pie Chart | 部分与整体 | Explode Pie, Pie Ratio(0.1-1), Show Values |
-| Donut Chart | KPI 展示 | Hole Size, Center Text/KPI |
-
-### 堆叠功能说明
-- **适用图表**: Bar、Line、Area、Point、Dot Plot、Multiple Measure
-- **启用方式**: Chart Style 面板底部勾选 'Stack' 选项
-- **Stack Measures**: 多度量堆叠（需启用 Stack 并切换到单图模式）
-- **应用场景**: 展示部分与整体的关系，比较各组成部分的贡献
-
-### 高级图表（重点测）
-| 图表类型 | 用途 | 关键属性 |
-|---------|------|---------|
-| Scatter Chart | 双度量关系 | Show Lines, Trend Line, Aggregation=None |
-| Bubble Chart | 三度量关系 | Size 绑定度量 |
-| Heat Map | 矩阵数据 | Color Spectrum, X/Y 为维度 |
-| Treemap | 层级数据 | T 区域(层级维度), Size/Color 度量 |
-| Map Chart | 地理数据 | Geographic 区域, Web Map 背景 |
-
-### 特殊图表（按需测）
-| 图表类型 | 用途 | 关键属性 |
-|---------|------|---------|
-| Word Cloud | 文本频率展示 | Font Scale, Text/Size 绑定 |
-| Network Chart | 节点关系 | Circular Network, Smooth Lines, Apply Aesthetics to Source Nodes |
-| Tree Chart | 层级结构 | - |
-| Sunburst Chart | 环形层级图 | - |
-| Icicle Chart | 层级结构 | - |
-| Circle Packing | 嵌套圆圈层级 | Include Parent Labels, Border Color |
-| Radar Chart | 多变量比较 | Smooth Lines, Show Points |
-| Funnel Chart | 流程各阶段 | - |
-| Waterfall Chart | 累积效应 | - |
-| Gantt Chart | 项目时间线 | - |
-| Box Chart | 数据分布统计 | - |
-| Candle Chart | 股票价格 | - |
-| Stock Chart | 金融数据分析 | - |
-| Pareto Chart | 主要因素分析 | Pareto Line Color |
-| Dual Axis Chart | 不同量级数据 | - |
-| Trellis Chart Grid | 图表矩阵 | - |
-| Point Chart | 点图 | - |
-| Dot Plot Chart | 点阵图 | - |
-| Step Line/Area Chart | 阶梯折线/面积 | - |
-| Interval Chart | 区间图 | - |
-| Running Total Chart | 累计图 | - |
-| Multiple Measure Chart | 多度量图 | - |
-| Multiple Style Chart | 多样式图 | - |
-| Hybrid Table Chart | 混合表图 | - |
-| Contour Map Chart | 等高线图 | Levels, Bandwidth, Cell Size |
-| Scatter Matrix Chart | 散点矩阵 | - |
-| Marimekko Chart | 马赛克图 | - |
+## Table of Contents
+1. [Chart Types](#chart-types)
+2. [Core Property Configuration](#core-property-configuration)
+3. [Data Binding](#data-binding)
+4. [Advanced Features](#advanced-features)
+5. [Date Comparison](#date-comparison)
+6. [Interactive Features](#interactive-features)
+7. [Testing Guidelines](#testing-guidelines)
 
 ---
 
-## 核心属性配置
+## Chart Types
 
-### General 标签
+### Basic Charts (Mandatory Testing)
+| Chart Type | Usage | Key Properties |
+|------------|-------|----------------|
+| Bar Chart | Categorical data comparison | Stack, Corner Radius(0-0.5), Round All Corners |
+| Stacked Bar Chart | Stacked bar chart | Stack mode, Stack Measures |
+| Line Chart | Time trend | Smooth Lines, Show Points, Dashed Line for Gaps |
+| Stacked Line Chart | Stacked line chart | Stack mode |
+| Area Chart | Cumulative trend | Stack, Smooth Lines |
+| Stacked Area Chart | Stacked area chart | Stack mode |
+| Pie Chart | Part-to-whole relationship | Explode Pie, Pie Ratio(0.1-1), Show Values |
+| Donut Chart | KPI display | Hole Size, Center Text/KPI |
+
+### Stack Functionality Notes
+- **Applicable Charts**: Bar, Line, Area, Point, Dot Plot, Multiple Measure
+- **Enable Method**: Check 'Stack' option at the bottom of Chart Style panel
+- **Stack Measures**: Multi-measure stacking (requires Stack enabled and single chart mode)
+- **Use Case**: Show part-to-whole relationships and compare contributions of each component
+
+### Advanced Charts (Key Testing)
+| Chart Type | Usage | Key Properties |
+|------------|-------|----------------|
+| Scatter Chart | Dual-measure relationship | Show Lines, Trend Line, Aggregation=None |
+| Bubble Chart | Triple-measure relationship | Size binding measure |
+| Heat Map | Matrix data | Color Spectrum, X/Y as dimensions |
+| Treemap | Hierarchical data | T zone(hierarchy dimension), Size/Color measures |
+| Map Chart | Geographic data | Geographic zone, Web Map background |
+
+### Special Charts (As Needed)
+| Chart Type | Usage | Key Properties |
+|------------|-------|----------------|
+| Word Cloud | Text frequency display | Font Scale, Text/Size binding |
+| Network Chart | Node relationships | Circular Network, Smooth Lines, Apply Aesthetics to Source Nodes |
+| Tree Chart | Hierarchical structure | - |
+| Sunburst Chart | Radial hierarchy | - |
+| Icicle Chart | Hierarchical structure | - |
+| Circle Packing | Nested circle hierarchy | Include Parent Labels, Border Color |
+| Radar Chart | Multi-variable comparison | Smooth Lines, Show Points |
+| Funnel Chart | Process stages | - |
+| Waterfall Chart | Cumulative effect | - |
+| Gantt Chart | Project timeline | - |
+| Box Chart | Data distribution statistics | - |
+| Candle Chart | Stock prices | - |
+| Stock Chart | Financial data analysis | - |
+| Pareto Chart | Key factor analysis | Pareto Line Color |
+| Dual Axis Chart | Different magnitude data | - |
+| Trellis Chart Grid | Chart matrix | - |
+| Point Chart | Point chart | - |
+| Dot Plot Chart | Dot plot | - |
+| Step Line/Area Chart | Step line/area | - |
+| Interval Chart | Interval chart | - |
+| Running Total Chart | Cumulative chart | - |
+| Multiple Measure Chart | Multi-measure chart | - |
+| Multiple Style Chart | Multi-style chart | - |
+| Hybrid Table Chart | Hybrid table chart | - |
+| Contour Map Chart | Contour map | Levels, Bandwidth, Cell Size |
+| Scatter Matrix Chart | Scatter matrix | - |
+| Marimekko Chart | Marimekko chart | - |
+
+---
+
+## Core Property Configuration
+
+### General Tab
 - **Title**: Visible, Text, Format
 - **Tooltip**: 
-  - **Default**: 默认模式，显示绑定数据值
-  - **Card**: 卡片模式
-  - **Combined Tooltip**: 合并模式（Line/Area图表），显示所有线的详情
-  - **Custom**: 自定义 HTML (`{0}`, `{Sum(Total)}`, HTML标签)
-  - **Snap to Nearest Data Point**: 吸附到最近数据点
+  - **Default**: Default mode, shows bound data values
+  - **Card**: Card mode
+  - **Combined Tooltip**: Combined mode (Line/Area charts), shows details of all lines
+  - **Custom**: Custom HTML (`{0}`, `{Sum(Total)}`, HTML tags)
+  - **Snap to Nearest Data Point**: Snap to nearest data point
 - **Data Tip View**: Component selection, Alpha, On Click Only
 - **Flyover Views**: Dynamic filtering on hover/click
 
-### Advanced 标签（测试重点）
-| 选项 | 作用 | 适用范围 |
-|------|------|---------|
-| Glossy Effect | 3D 效果 | 部分图表 |
-| Sparkline | 简洁模式 | 折线/条形 |
-| Enable Drilling | 钻取功能 | 日期/维度 |
-| Enable Date Comparison | 日期比较 | 时间序列 |
-| Enable Ad Hoc Editing | 用户编辑 | 所有图表 |
-| Sort Others Last | Others 排序 | Top-N 场景 |
+### Advanced Tab (Testing Focus)
+| Option | Function | Applicable Scope |
+|--------|----------|------------------|
+| Glossy Effect | 3D effect | Some charts |
+| Sparkline | Compact mode | Line/Bar |
+| Enable Drilling | Drill down function | Date/Dimension |
+| Enable Date Comparison | Date comparison | Time series |
+| Enable Ad Hoc Editing | User editing | All charts |
+| Sort Others Last | Others sorting | Top-N scenarios |
 
 **Plot Options**:
 - **General**: Show Values, Show Reference Line, Stack Value, Keep Element in Plot, Fill Time-Series Gaps
@@ -112,143 +112,164 @@
 ### Axis Properties
 - **Label**: Show Axis Labels, Rotation, Labels on Opposite Side
 - **Line**: Logarithmic Scale, Reverse, Shared Range, Minimum/Maximum, Increment
-- **Alias**: 自定义轴标签别名
+- **Alias**: Custom axis label alias
 
 ### Legend Properties
-- **General**: Title, Visible, Position, Symbol Size(6-50)，Ignore Null, Legend Border
+- **General**: Title, Visible, Position, Symbol Size(6-50), Ignore Null, Legend Border
 - **Scale**: Logarithmic Scale, Reverse, Include Zero
-- **Alias**: 自定义图例标签
+- **Alias**: Custom legend label
 
-### Line 标签
+### Line Tab
 - **Grid Lines**: X/Y Grid, Quadrant Grid, Diagonal Line
-- **Trend Line**: 拟合方法(linear/quadratic), One Per Color, Project Forward
-- **Project Forward**: 趋势预测，不适用于 Pie/Radar/Map/Waterfall
+- **Trend Line**: Fitting method(linear/quadratic), One Per Color, Project Forward
+- **Project Forward**: Trend prediction, not applicable to Pie/Radar/Map/Waterfall
 
 ---
 
-## 数据绑定
+## Data Binding
 
-### 编辑器绑定区域
-| 区域 | 作用 | 说明 |
-|------|------|------|
-| X / Y | 主轴维度或度量 | 核心绑定区 |
-| Color | 颜色分组 | Palette, Share Colors, Fixed Mapping |
-| Shape | 形状分组 | 支持自定义图片(png/gif/jpg/svg) |
-| Size | 大小分组 | 范围滑块，环形图控制孔径 |
-| Text | 文本标签 | 格式化设置 |
-| Break By / Tooltip | 分组不视觉呈现，仅 Tooltip 显示 | - |
-| T | 树图/旭日图层级维度 | 多级拖拽 |
-| Geographic | 地图地理字段 | 需 Set Geographic 设置地图类型和层级 |
+### Editor Binding Zones
+| Zone | Function | Description |
+|------|----------|-------------|
+| X / Y | Primary axis dimension or measure | Multiple fields can be bound (multi-measure/multi-level dimension); dimensions and measures can swap axes |
+| Color | Color grouping | Dimension→Palette classification; Measure→Spectrum gradient; supports Fixed Mapping |
+| Shape | Shape grouping | Built-in shapes + custom images(png/gif/jpg/svg) |
+| Size | Size grouping | Range slider controls mapping interval; Bubble→bubble size; Donut→hole size |
+| Text | Text label | Format settings, display data labels |
+| Break By | Split without encoding | Split visual elements by field (multi-line/multi-group), no color legend generated |
+| Tooltip | Tooltip only | Field values only appear in hover Tooltip, not involved in visual encoding |
+| T | Hierarchy dimension | Treemap/Sunburst/Icicle/Circle Packing only; supports multi-field multi-level hierarchy |
+| Geographic | Geographic field | Map only; requires Set Geographic to configure map type and level |
+| Path | Path field | Mekko/some Network charts only |
+| Open/Close/High/Low | Price fields | Candle/Stock Chart only |
+| Start/End | Time range | Gantt Chart only |
+| Milestone | Milestone | Gantt Chart only, mark key nodes |
+| Source/Target | Network edges | Network Chart only, define edge start and end points |
 
-### 度量绑定
-- **聚合方法**：Sum / Count / Average / Min / Max / None
+### Measure Binding
+- **Aggregation Methods**: Sum / Count / Average / Min / Max / None
 
-### Trend & Comparison 计算
-| 计算类型 | 说明 | 关键参数 |
-|---------|------|---------|
-| Percent | 百分比 | Dimension / Grand Total / Subtotal |
-| Change | 差值/变化率 | First/Previous/Next/Last, As percent |
-| Running | 累计聚合 | Aggregate(Sum/Avg 等), Reset at(Year/Quarter/Month 等) |
-| Sliding | 滑动窗口 | Previous N, Next N, Include current value, Null if not enough values |
-| Value Of | 取特定位置值 | First / Previous / Next / Last |
-| Compound Growth | 复利增长率 | Aggregate(Min/Max/Average)，仅适用于百分比值 |
+### Trend and Comparison Calculations
+| Calculation Type | Description | Parameters |
+|------------------|-------------|------------|
+| Percent | Percentage | Dimension/Grand Total/Subtotal |
+| Change | Difference | First/Previous/Next/Last, As percent |
+| Running | Cumulative | Aggregate, Reset at(Year/Quarter/Month) |
+| Sliding | Sliding window | Previous/Next, Include current value |
+| Value Of | Value extraction | First/Previous/Next/Last |
+| Compound Growth | Compound growth | Aggregate(Min/Max/Average) |
 
-### 日期分组级别
-- **时间粒度**：Year, Quarter, Month, Week, Day, Hour, Minute, Second
-- **周期性**：Month of Year(1-12), Quarter of Year(1-4), Week of Year(1-52), Day of Month(1-31), Day of Week(1-7), Hour of Day(0-23)
+### Date Grouping Levels
+- **Time Granularity**: Year, Quarter, Month, Week, Day, Hour, Minute, Second
+- **Periodicity**: Month of Year(1-12), Quarter of Year(1-4), Week of Year(1-52), Day of Month(1-31), Day of Week(1-7), Hour of Day(0-23)
 
-### 命名组
-- Ctrl 选择多个轴/图例标签 → 右键 Group Items → 输入组名
-- 不支持日期字段
-
----
-
-## 高级功能
-
-### 钻取 (Drill Down)
-- **触发方式**: 悬停轴标签 → Drill Down 按钮
-- **钻取类型**:
-  - 离散分组 → 创建 facet 图表
-  - 连续分组 → 更改维度级别
-- **自定义层级**: Hierarchy 标签 → 拖拽字段创建钻取路径
-
-### 刷选 (Brush)
-- **选择方式**: 单击/Ctrl+单击/Shift+单击
-- **联动效果**: 相关图表高亮显示
-- **清除**: Clear Brushing
-
-### 缩放 (Zoom)
-- **包含模式**: Zoom → 仅显示选中数据
-- **排除模式**: Exclude → 隐藏选中数据
-- **恢复**: Clear Zoom
-
-### 明细钻取
-- **操作**: Show Details → Data 面板显示明细
-- **功能**: 格式化、样式、导出
-
-### 趋势和比较计算
-| 计算类型 | 说明 | 参数 |
-|---------|------|------|
-| Percent | 百分比 | Dimension/Grand Total/Subtotal |
-| Change | 差值 | First/Previous/Next/Last, As percent |
-| Running | 累计 | Aggregate, Reset at(Year/Quarter/Month) |
-| Sliding | 滑动窗口 | Previous/Next, Include current value |
-| Value Of | 取值 | First/Previous/Next/Last |
-| Compound Growth | 复利增长 | Aggregate(Min/Max/Average) |
-
-### 目标线和趋势线
-- **Target Lines**: 标记线/带状区域/统计区域
-- **Trend Line**: 拟合方法, One Per Color, Project Forward
+### Named Groups
+- Ctrl select multiple axis/legend labels → Right-click Group Items → Enter group name
+- Not supported for date fields
 
 ---
 
-## 交互功能
+## Advanced Features
 
-### 工具栏工具
-- Drill Down Filter, Chart Brush, Zoom, Exclude
+### Drill Down
+- **Trigger**: Hover axis label → Drill Down button
+- **Drill Types**:
+  - Discrete grouping → Create facet chart
+  - Continuous grouping → Change dimension level
+- **Custom Hierarchy**: Hierarchy tab → Drag fields to create drill path
+
+### Brush
+- **Selection Methods**: Click/Ctrl+Click/Shift+Click
+- **Linked Effect**: Related charts highlight
+- **Clear**: Clear Brushing
+
+### Zoom
+- **Include Mode**: Zoom → Show selected data only
+- **Exclude Mode**: Exclude → Hide selected data
+- **Restore**: Clear Zoom
+
+### Detail Drill Down
+- **Operation**: Show Details → Data panel displays details
+- **Features**: Formatting, styling, export
+
+### Target Lines and Trend Lines
+- **Target Lines**: Marker lines/band areas/statistical areas
+- **Trend Line**: Fitting methods, One Per Color, Project Forward
+
+---
+
+## Date Comparison
+
+**Entry**: Chart right-click / Toolbar More → Date Comparison (requires Enable Date Comparison checked first)
+
+**Supported Chart Types**: Bar, Line, Area, Point, Interval, Step Line/Area
+**Not Supported**: Pie, Bubble, Map, Word Cloud, Network, Treemap, etc.
+
+**Period Types**:
+- Standard Periods: Set comparison period by Year/Quarter/Month/Week/Day, supports To Date
+- Custom Periods: Custom date intervals + labels, supports multiple intervals
+
+**Granularity**: Data subdivision granularity within each comparison period (Year/Quarter/Month/Week/Day)
+
+**Comparison Option**: Value / Change / Change+Value / Percent Change / Percent Change+Value
+
+**Display Modes**:
+- Default Overlay: Each period as independent series, X-axis grouped by granularity, legend shows period names
+- Facet Mode: Each period generates independent sub-chart
+
+**Key Behaviors**:
+- When DC is enabled, colors automatically override original Color binding by period
+- To Date automatically disabled when Period Level = Interval Level
+- DC may trigger automatic chart type conversion
+
+---
+
+## Interactive Features
+
+### Toolbar Tools
 - Show Summary/Details, Chart Show Enlarged
 - More → Properties/Format/Save As Image/Resize Plot/Date Comparison
 
-### 右键选项
-- 轴标题: Title Properties, Format, Hide Title
-- 轴: Axis Properties, Format, Hide Axis
-- 数据点: Annotate Point
-- 图例: Legend Properties, Format, Hide Legend
+### Right-click Options
+- Axis Title: Title Properties, Format, Hide Title
+- Axis: Axis Properties, Format, Hide Axis
+- Data Point: Annotate Point
+- Legend: Legend Properties, Format, Hide Legend
 
-### 自定义 Tooltip
-- **语法**: `{0}`, `{Sum(Total)}`, HTML 标签(`<b>`, `<br>`)
-- **格式化**: `{0, date, MMMM yyyy}`, `{1, number, $#,###.00}`
-- **多度量**: `|Quantity: {1}|` 条件显示
+### Custom Tooltip
+- **Syntax**: `{0}`, `{Sum(Total)}`, HTML tags(`<b>`, `<br>`)
+- **Formatting**: `{0, date, MMMM yyyy}`, `{1, number, $#,###.00}`
+- **Multi-measure**: Conditional display `|Quantity: {1}|`
 
 ---
 
-## 测试要点
+## Testing Guidelines
 
-### 图表类型测试矩阵
-| 测试维度 | 测试点 |
-|---------|------|
-| 数据绑定 | 维度/度量正确绑定到各区域 |
-| 显示效果 | 图表渲染正确，无布局异常 |
-| 交互功能 | 钻取、刷选、缩放正常工作 |
-| 属性配置 | 各属性修改后生效 |
-| 边界条件 | 空数据、极端值、大数据量 |
+### Chart Type Test Matrix
+| Test Dimension | Test Points |
+|----------------|-------------|
+| Data Binding | Dimension/measure correctly bound to each zone |
+| Display Effect | Chart renders correctly, no layout anomalies |
+| Interactive Features | Drill down, brush, zoom work properly |
+| Property Configuration | Changes take effect after modification |
+| Boundary Conditions | Empty data, extreme values, large data volume |
 
-### 属性值范围测试
-- **数值范围**: Corner Radius(0-0.5), Pie Ratio(0.1-1), Symbol Size(6-50), Alpha(0-100%)
-- **布尔选项**: Enable Drilling, Show Points, Smooth Lines
-- **枚举选项**: Aggregation(Sum/Count/Avg/Min/Max/None), Date Level(Year/Quarter/Month/...)
+### Property Value Range Testing
+- **Numeric Range**: Corner Radius(0-0.5), Pie Ratio(0.1-1), Symbol Size(6-50), Alpha(0-100%)
+- **Boolean Options**: Enable Drilling, Show Points, Smooth Lines
+- **Enumeration Options**: Aggregation(Sum/Count/Avg/Min/Max/None), Date Level(Year/Quarter/Month/...)
 
-### 兼容性测试
-- **跨图表类型**: 相同配置在不同图表中的表现
-- **浏览器兼容性**: 主流浏览器渲染一致性
-- **数据类型兼容性**: 不同数据源(Excel/DB/API)
+### Compatibility Testing
+- **Cross-chart Type**: Same configuration behavior across different charts
+- **Browser Compatibility**: Rendering consistency across major browsers
+- **Data Type Compatibility**: Different data sources(Excel/DB/API)
 
-### 性能测试
-- **大数据量**: 1000+ 数据点的渲染速度
-- **复杂图表**: 多度量/多层级的响应时间
-- **刷新策略**: Manual/Auto Refresh 的资源消耗
+### Performance Testing
+- **Large Data Volume**: Rendering speed with 1000+ data points
+- **Complex Charts**: Response time for multi-measure/multi-level charts
+- **Refresh Strategy**: Resource consumption for Manual/Auto Refresh
 
-### 异常场景测试
-- **空数据**: 无数据时的提示信息
-- **无效配置**: 错误绑定的提示和处理
-- **权限控制**: 无权限用户的行为限制
+### Exception Scenario Testing
+- **Empty Data**: Prompt message when no data
+- **Invalid Configuration**: Prompt and handling for incorrect binding
+- **Permission Control**: Behavior restrictions for users without permissions
