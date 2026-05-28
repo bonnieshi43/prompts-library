@@ -11,10 +11,10 @@ last-updated: 2026-05-28
 | Category                    | Count |
 |-----------------------------|-------|
 | Discarded UI scenarios      | 12    |
-| Kept P1                     | 34    |
+| Kept P1                     | 38    |
 | Kept P2                     | 7     |
 | Needs clarification         | 3     |
-| P3 Manual-Only Test Points  | 9     |
+| P3 Manual-Only Test Points  | 9 |
 
 ---
 
@@ -117,6 +117,9 @@ The Scheduler module allows administrators and users to automate report/dashboar
 | TC-040 | P2 | Batch Action — Parameters: Query Mode UI `[CRUD]` | Query dropdown loads only worksheets with tables; Parameters section maps VS parameters to query columns; config persists after save/reopen |
 | TC-041 | P2 | Execute As — Permission Enforcement and VPM `[CRUD]` | Execute As user with no read permission → task fails with access denied; VPM applied to Execute As user, not task owner |
 | TC-042 | P2 | Task Options — Owner Field Admin Change `[CRUD]` `[Cross-Module]` | EM admin can reassign task owner; Portal Owner field always disabled showing current user |
+| TC-043 | P1 | Copy Condition — 6 types (Daily/Weekly/Monthly/Hourly/RunOnce/Chained) alternating EM+Portal; deep clone; naming rule; copy-of-copy prefix strip `[Feature][CRUD][Cross-Module]` | All condition fields deep-cloned; "Copy of X" naming; re-copying "Copy of X" stays "Copy of X"; EM↔Portal sync after save |
+| TC-044 | P1 | Copy Action — Email Delivery (EM) + Save to Disk (Portal); full field clone; independence after modification `[Feature][CRUD][Cross-Module]` | Copied action independent of original; all fields preserved; Bug #74028: Portal stays in list view after copy |
+| TC-045 | P1 | Copy Action (EM-only: Backup + Batch) + Regression: delete after copy; dirty check; Copy button disabled state `[Feature][CRUD]` | EM-only action fields preserved; delete/dirty-check regressions pass; Portal Copy button disabled in multi-select and empty-select states |
 
 ### Env: security=false (仅差异验证)
 
@@ -956,6 +959,118 @@ The Scheduler module allows administrators and users to automate report/dashboar
 - After reassignment, task appears in new owner's Portal view and disappears from previous owner's Portal view.
 - Portal Owner field is always disabled regardless of role.
 - Non-admin users in EM cannot change owner.
+
+---
+
+#### TC-043 Copy Condition — Deep Clone All Types; EM/Portal Alternating; Naming Rule `P1` `[env: security=true]` `[Feature]` `[CRUD]` `[Cross-Module]`
+
+**Scope:** Task Define — Conditions tab, Copy button; EM ↔ Portal; all 6 condition types
+
+**Validates rule:** Copy creates a deep-independent clone of the condition with "Copy of [label]" prefix; re-copying a "Copy of X" strips the existing prefix and yields another "Copy of X" (no stacking); all condition types (TimeCondition variants + CompletionCondition) clone correctly; copies sync across EM/Portal after save (Feature #72805)
+
+**Pre-conditions:** security=true; admin login on both EM and Portal; task "Task_CopyCondition_TC043" exists with: a Daily condition "Daily_09:00_EST" (time=09:00, zone=EST) and a Chained condition "Chained_after_ParentTask" (parent = "ParentTask")
+
+**Steps:**
+
+*(Daily — EM → Portal, condition type #1 odd)*
+1. In EM, edit "Task_CopyCondition_TC043"; Conditions tab. Select "Daily_09:00_EST"; click **Copy**.
+2. Verify: new condition "Copy of Daily_09:00_EST" appears at the bottom of the list and is automatically selected.
+3. Open the copy's edit form; verify ALL fields match the original: type=Daily, time=09:00, timezone=EST, interval, weekday settings.
+4. Modify the copy's start time to 18:00; save the task.
+5. **Sync check:** Portal — Conditions tab shows 2 entries: original "Daily_09:00_EST" (09:00 unchanged) and "Daily_18:00_EST". Both independent.
+
+*(Copy-of-copy prefix strip — same session)*
+6. In Portal, select "Daily_09:00_EST"; click **Copy** → verify the new entry is named "Copy of Daily_09:00_EST" (NOT "Copy of Copy of Daily_09:00_EST"); prefix-strip while-loop applied.
+7. Delete the extra copy (from step 6); save; 
+
+*(Chained/CompletionCondition — Portal → EM, condition type #6 even)*
+8. In Portal, select "Chained_after_ParentTask"; click **Copy** → new condition "Copy of Chained_after_ParentTask" appears.
+9. Open the copy's edit form; verify ALL fields: type=Completion, "Run after" = "ParentTask". Confirm the parent task reference is independently cloned (modifying the copy's parent does not affect the original).
+
+*(Coverage note — remaining types: Weekly/Monthly/Hourly/RunOnce use the same TimeCondition model as Daily; verify at least one additional type)*
+10. In EM, Add a Weekly condition "Weekly_Mon_Fri" (Mon+Fri, interval=1) to the task. copy it; verify days-of-week selection and interval are preserved in the copy.
+11. In EM, Add a Run Once condition with a specific date/time. copy it; verify date, time, and timezone are preserved.
+
+**Expected:**
+- Copied condition is a fully independent deep clone of all fields.
+- Naming: "Copy of [original label]"; re-copying a copy yields the same "Copy of [base label]" — no prefix stacking.
+- Original condition unchanged after modifying its copy.
+- CompletionCondition parent task reference correctly deep-cloned.
+- Copies visible on both EM and Portal after save (cross-side sync).
+
+---
+
+#### TC-044 Copy Action — Dashboard Actions (Email Delivery + Save to Disk); Full Field Clone; Independence `P1` `[env: security=true]` `[Feature]` `[CRUD]` `[Cross-Module]`
+
+**Scope:** Task Define — Actions tab, Copy button; Dashboard action types; EM ↔ Portal
+
+**Validates rule:** Dashboard action copies (Email Delivery and Save to Disk) preserve all fields including format, bookmarks, notification settings, and path configuration; copied action is independently modifiable without affecting original; save persists both actions; Bug #74028: Portal does not auto-switch to edit view after copy (Feature #72805)
+
+**Pre-conditions:** security=true; admin login on both sides; email server configured; task "Task_CopyAction_TC044" has: (1) a Dashboard/Email Delivery action "Email_A" (To=A@test.com, CC=CC@test.com, format=PDF, bookmark selected, notification enabled); (2) a Save to Disk action "SaveDisk_1" (local server path configured, filename set, format=Excel)
+
+**Steps:**
+
+*(Email Delivery — EM → Portal, action type #1 odd)*
+1. In EM, edit "Task_CopyAction_TC044"; Actions tab. Select "DashboardAction:dash1"; click **Copy**.
+2. Verify: "Copy of DashboardAction:dash1" appears at the bottom of the Actions list and is automatically selected.
+3. Open the copy's edit form; verify ALL fields match original: To=A@test.com, CC=CC@test.com, subject, format=PDF, bookmark selection, notification email address, "Notify only if failed" state, "Include Link" state, "Match Layout" state.
+4. Change the copy's "To" address to B@test.com; save the task.
+5. **Sync check:** Portal — Actions tab shows 2 Email actions: "DashboardAction:dash1" (To=A@test.com, unchanged) and "DashboardAction:dash1" (To=B@test.com). Open both and confirm all other fields are identical and independent.
+6. Run task (Run Now); verify execution succeeds; both email actions deliver to their respective recipients. (P3 - manual: verify two separate emails received at A@test.com and B@test.com)
+
+*(Save to Disk — Portal → EM, action type #2 even)*
+7. In Portal, select "SaveDisk_1"; click **Copy**.
+8. Manually click "Copy of SaveDisk_1" to open its edit form. Verify ALL fields match original: server save path, filename, format=Excel, enabled checkboxes.
+9. Change the copy's filename; save. Verify both Save to Disk actions present; "SaveDisk_1" has original filename; "Copy of SaveDisk_1" has modified filename. Both independent.
+
+**Expected:**
+- All Email Delivery fields (To/CC/BCC, subject, format, bookmarks, notification settings) fully preserved in copy.
+- All Save to Disk fields (path, filename, format, options) fully preserved in copy.
+- Modifying copy does not affect the original action.
+- After save, both original and copy persist and are visible on both sides.
+
+---
+
+#### TC-045 Copy Action (EM-only: Backup + Batch) + Copy Regression `P1` `[env: security=true]` `[Feature]` `[CRUD]`
+
+**Scope:** Task Define — Actions tab, Copy button; Backup and Batch action types (EM only); regression: delete after copy, dirty check, Copy button disabled states
+
+**Validates rule:** EM-only action types (Backup, Batch) clone all fields correctly; deleting a copied action works without errors; navigating away after copy triggers the unsaved-changes dialog; Portal Copy button correctly disabled in multi-select and nothing-selected states (Feature #72805)
+
+**Pre-conditions:** security=true; admin login on EM and Portal; task "Task_CopyRegression_TC045" has: a Backup action (2 assets selected) and a Batch action (3 tasks selected); Portal has a task with at least 2 conditions
+
+**Steps:**
+
+*(Backup action copy — EM only)*
+1. In EM, edit "Task_CopyRegression_TC045"; Actions tab. Select the Backup action; click **Copy**.
+2. Verify "Copy of [Backup action name]" appears; open its edit form; confirm the asset selection is identical to the original (same 2 assets, no additions or omissions).
+
+*(Batch action copy — EM only)*
+3. Select the Batch action; click **Copy** → "Copy of [Batch action name]" appears; open it; confirm the selected batch task list is identical to the original (same 3 tasks).
+
+*(Regression: delete after copy)*
+4. Select the Backup copy; click **Delete** → confirmation dialog appears. Confirm → copy deleted; original Backup action remains intact. Verify no errors (canDelete guard respects the new count after copy).
+5. Select the Batch copy; click **Delete** → same flow; confirm; no errors.
+
+*(Regression: dirty check — navigate away without saving)*
+6. In EM, select the Batch action; click **Copy** (task is now dirty, `taskChanged=true`). Do NOT save.
+7. Click a different item in the left navigation panel to leave the task edit page.
+8. Verify: "The task has unsaved changes, close anyway?" dialog appears.
+9. Click **Cancel** → remain on task edit page; Batch copy still present in the Actions list.
+10. Click navigation again → click **OK** → navigate away; Batch copy is discarded (not persisted).
+
+*(Portal Copy button disabled states)*
+11. In Portal, open a task with at least 2 conditions; navigate to the Conditions list.
+12. Deselect all conditions (nothing selected): verify the **Copy** button is **disabled**.
+13. Select 2 conditions simultaneously (Ctrl+click / multi-select): verify the **Copy** button is **disabled**.
+14. (Note: In EM, a condition is always selected by default; the Copy button does not reach a disabled state under normal usage.)
+
+**Expected:**
+- Backup action: asset selection fully preserved in copy.
+- Batch action: selected task list fully preserved in copy.
+- Delete after copy: works correctly; no "cannot delete last item" errors when count > 1.
+- Dirty check: "The task has unsaved changes, close anyway?" dialog triggers after copy on navigation. Cancel = stay; OK = leave without persisting copy.
+- Portal Copy button: disabled when nothing selected or multi-select (>1); enabled for exactly 1 selected item.
 
 ---
 
