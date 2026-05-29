@@ -98,10 +98,9 @@
 - **Pie Chart**: Explode Pie, Pie Ratio(0.1-1)
 - **Bar Chart**: Bar Corner Radius(0-0.5), Round All Corners, Stack
 - **Line/Area Chart**: Show Points, Smooth Lines, Fill Missing Data with Dashed Line
-- **Radar Chart**: Show Points
-- **Network Chart**: Apply Aesthetics to Source Nodes
+- **Radar Chart**: Show Points, Fill Missing Data with Dashed Line
+- **Network/Tree Chart**: Apply Aesthetics to Source Nodes
 - **Circular Network**: Smooth Lines (Bezier)
-- **Tree Chart**: Apply Aesthetics to Source Nodes
 - **Circle Packing/Tree Chart**: Include Parent Labels
 - **Word Cloud**: Font Scale
 - **Point Chart**: Show Lines, As One Line, Fill Missing Data with Dashed Line
