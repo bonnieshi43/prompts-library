@@ -14,14 +14,11 @@
 ## Chart Types
 
 ### Basic Charts (Mandatory Testing)
-| Chart Type | Usage | Key Properties |
+| Chart Type | Usage | Key Points |
 |------------|-------|----------------|
-| Bar Chart | Categorical data comparison | Stack, Corner Radius(0-0.5), Round All Corners |
-| Stacked Bar Chart | Stacked bar chart | Stack mode, Stack Measures |
-| Line Chart | Time trend | Smooth Lines, Show Points, Dashed Line for Gaps |
-| Stacked Line Chart | Stacked line chart | Stack mode |
-| Area Chart | Cumulative trend | Stack, Smooth Lines |
-| Stacked Area Chart | Stacked area chart | Stack mode |
+| Bar / Stacked Bar Chart | Categorical comparison, supports stacking | Stack, Stack Measures, Bar Corner Radius(0-0.5), Round All Corners |
+| Line / Stacked Line Chart | Time trend, supports stacking | Smooth Lines, Show Points, Dashed Line for Gaps, Stack |
+| Area / Stacked Area Chart | Cumulative trend, supports stacking | Stack, Smooth Lines |
 | Pie Chart | Part-to-whole relationship | Explode Pie, Pie Ratio(0.1-1), Show Values |
 | Donut Chart | KPI display | Hole Size, Center Text/KPI |
 
@@ -32,7 +29,7 @@
 - **Use Case**: Show part-to-whole relationships and compare contributions of each component
 
 ### Advanced Charts (Key Testing)
-| Chart Type | Usage | Key Properties |
+| Chart Type | Usage | Key Points |
 |------------|-------|----------------|
 | Scatter Chart | Dual-measure relationship | Show Lines, Trend Line, Aggregation=None |
 | Bubble Chart | Triple-measure relationship | Size binding measure |
@@ -41,35 +38,35 @@
 | Map Chart | Geographic data | Geographic zone, Web Map background |
 
 ### Special Charts (As Needed)
-| Chart Type | Usage | Key Properties |
+| Chart Type | Usage | Key Points |
 |------------|-------|----------------|
 | Word Cloud | Text frequency display | Font Scale, Text/Size binding |
-| Network Chart | Node relationships | Circular Network, Smooth Lines, Apply Aesthetics to Source Nodes |
-| Tree Chart | Hierarchical structure | - |
-| Sunburst Chart | Radial hierarchy | - |
-| Icicle Chart | Hierarchical structure | - |
-| Circle Packing | Nested circle hierarchy | Include Parent Labels, Border Color |
-| Radar Chart | Multi-variable comparison | Smooth Lines, Show Points |
-| Funnel Chart | Process stages | - |
-| Waterfall Chart | Cumulative effect | - |
-| Gantt Chart | Project timeline | - |
-| Box Chart | Data distribution statistics | - |
-| Candle Chart | Stock prices | - |
-| Stock Chart | Financial data analysis | - |
-| Pareto Chart | Key factor analysis | Pareto Line Color |
-| Dual Axis Chart | Different magnitude data | - |
-| Trellis Chart Grid | Chart matrix | - |
-| Point Chart | Point chart | - |
-| Dot Plot Chart | Dot plot | - |
-| Step Line/Area Chart | Step line/area | - |
-| Interval Chart | Interval chart | - |
-| Running Total Chart | Cumulative chart | - |
-| Multiple Measure Chart | Multi-measure chart | - |
-| Multiple Style Chart | Multi-style chart | - |
-| Hybrid Table Chart | Hybrid table chart | - |
-| Contour Map Chart | Contour map | Levels, Bandwidth, Cell Size |
-| Scatter Matrix Chart | Scatter matrix | - |
-| Marimekko Chart | Marimekko chart | - |
+| Network Chart | Node relationship graph | Source/Target binding, Circular Network |
+| Tree Chart | Directional hierarchy from edges | Source/Target binding |
+| Sunburst Chart | Radial multi-level hierarchy | T zone (multi-level dimensions), Color measure for segment color |
+| Icicle Chart | Rectangular multi-level hierarchy | T zone (multi-level dimensions), Color measure, top-down layout |
+| Circle Packing | Nested circle hierarchy | T zone (multi-level dimensions), Include Parent Labels, Border Color |
+| Radar Chart | Multi-variable comparison | Show Points, multiple measures on polar axes |
+| Funnel Chart | Sequential stage drop-off | Ordered stages, decreasing area per stage |
+| Waterfall Chart | Cumulative incremental effect | Positive/Negative/Total segment colors, running total display |
+| Gantt Chart | Project timeline scheduling | Start/End/Milestone binding zones, task duration bars |
+| Box Chart | Statistical distribution | Show Mean, Show Outliers, Whisker Range (1.5× IQR default) |
+| Candle Chart | Stock OHLC price display | Open/Close/High/Low binding zones, candlestick color (up/down) |
+| Stock Chart | Stock price trend (line-based OHLC) | Open/Close/High/Low binding zones |
+| Pareto Chart | Key factor analysis (80/20 rule) | Pareto Line Color, cumulative percentage line overlay |
+| Dual Axis Chart | Compare measures of different scales | Secondary Y-axis, independent scale per measure group |
+| Trellis Chart Grid | Small multiples (chart matrix) | Outer Row/Column facet dimensions, inner chart type |
+| Point Chart | Categorical scatter display | X/Y as dimensions, Color/Shape for grouping, Show Lines |
+| Dot Plot Chart | Distribution across categories | Jitter display, Show Mean/Median reference |
+| Step Line/Area Chart | Discrete step-change trend | Step direction (before/after/center), Stack |
+| Interval Chart | Range/error bar visualization | High/Low measure binding for interval bars |
+| Running Total Chart | Cumulative aggregation over time | Configured via Running calculation in Data Binding |
+| Multiple Measure Chart | Multiple measures in unified view | Multiple Y measures, Stack Measures, independent axes option |
+| Multiple Style Chart | Mixed chart types in one view | Per-measure chart type assignment (bar+line+area mix) |
+| Hybrid Table Chart | Table with embedded chart cells | Chart cells within table rows, dual data+visual view |
+| Contour Map Chart | Density/heat contour on map | Levels, Bandwidth, Edge Alpha, Cell Size |
+| Scatter Matrix Chart | Pairwise scatter for dimension set | Diagonal labels, pairwise dimension combinations |
+| Marimekko Chart | Two-dimensional proportional bars | Proportional column width + stacked height, two categorical dimensions |
 
 ---
 
@@ -100,8 +97,11 @@
 - **General**: Show Values, Show Reference Line, Stack Value, Keep Element in Plot, Fill Time-Series Gaps
 - **Pie Chart**: Explode Pie, Pie Ratio(0.1-1)
 - **Bar Chart**: Bar Corner Radius(0-0.5), Round All Corners, Stack
-- **Line/Area/Radar Chart**: Show Points, Smooth Lines, Fill Missing Data with Dashed Line
-- **Network/Tree Chart**: Apply Aesthetics to Source Nodes, Smooth Lines (Bezier)
+- **Line/Area Chart**: Show Points, Smooth Lines, Fill Missing Data with Dashed Line
+- **Radar Chart**: Show Points
+- **Network Chart**: Apply Aesthetics to Source Nodes
+- **Circular Network**: Smooth Lines (Bezier)
+- **Tree Chart**: Apply Aesthetics to Source Nodes
 - **Circle Packing/Tree Chart**: Include Parent Labels
 - **Word Cloud**: Font Scale
 - **Point Chart**: Show Lines, As One Line, Fill Missing Data with Dashed Line
@@ -139,11 +139,10 @@
 | Tooltip | Tooltip only | Field values only appear in hover Tooltip, not involved in visual encoding |
 | T | Hierarchy dimension | Treemap/Sunburst/Icicle/Circle Packing only; supports multi-field multi-level hierarchy |
 | Geographic | Geographic field | Map only; requires Set Geographic to configure map type and level |
-| Path | Path field | Mekko/some Network charts only |
+| Path | Geographic path | Map Chart only; defines route/path lines on map (e.g., flight routes) |
 | Open/Close/High/Low | Price fields | Candle/Stock Chart only |
-| Start/End | Time range | Gantt Chart only |
-| Milestone | Milestone | Gantt Chart only, mark key nodes |
-| Source/Target | Network edges | Network Chart only, define edge start and end points |
+| Start/End/Milestone | Time range and milestones | Gantt Chart only; Start/End defines task duration, Milestone marks key nodes |
+| Source/Target | Network edges | Network Chart, Tree Chart, define edge start and end points |
 
 ### Measure Binding
 - **Aggregation Methods**: Sum / Count / Average / Min / Max / None
