@@ -1,5 +1,5 @@
-# InetSoft Chart Knowledge Base (Lite Test Version)
-<!-- This document provides a global test map for the Chart module. If PR involves specific functions such as Tooltip, Stack, Drill Down, Export, etc., corresponding special knowledge base or product documentation should be supplemented. -->
+# InetSoft Chart Module Knowledge Base
+<!-- Chart module background knowledge (Lite). Supplement dedicated docs for specific features (Tooltip, Stack, Drill Down, Export, etc.) as needed. -->
 
 ## Table of Contents
 1. [Chart Types](#chart-types)
@@ -8,7 +8,6 @@
 4. [Advanced Features](#advanced-features)
 5. [Date Comparison](#date-comparison)
 6. [Interactive Features](#interactive-features)
-7. [Testing Guidelines](#testing-guidelines)
 
 ---
 
@@ -242,34 +241,3 @@
 - **Multi-measure**: Conditional display `|Quantity: {1}|`
 
 ---
-
-## Testing Guidelines
-
-### Chart Type Test Matrix
-| Test Dimension | Test Points |
-|----------------|-------------|
-| Data Binding | Dimension/measure correctly bound to each zone |
-| Display Effect | Chart renders correctly, no layout anomalies |
-| Interactive Features | Drill down, brush, zoom work properly |
-| Property Configuration | Changes take effect after modification |
-| Boundary Conditions | Empty data, extreme values, large data volume |
-
-### Property Value Range Testing
-- **Numeric Range**: Corner Radius(0-0.5), Pie Ratio(0.1-1), Symbol Size(6-50), Alpha(0-100%)
-- **Boolean Options**: Enable Drilling, Show Points, Smooth Lines
-- **Enumeration Options**: Aggregation(Sum/Count/Avg/Min/Max/None), Date Level(Year/Quarter/Month/...)
-
-### Compatibility Testing
-- **Cross-chart Type**: Same configuration behavior across different charts
-- **Browser Compatibility**: Rendering consistency across major browsers
-- **Data Type Compatibility**: Different data sources(Excel/DB/API)
-
-### Performance Testing
-- **Large Data Volume**: Rendering speed with 1000+ data points
-- **Complex Charts**: Response time for multi-measure/multi-level charts
-- **Refresh Strategy**: Resource consumption for Manual/Auto Refresh
-
-### Exception Scenario Testing
-- **Empty Data**: Prompt message when no data
-- **Invalid Configuration**: Prompt and handling for incorrect binding
-- **Permission Control**: Behavior restrictions for users without permissions
