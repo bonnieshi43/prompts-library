@@ -233,7 +233,7 @@
 
 **Risk Covered**：R3、Functional
 
-🔴 **测试-分析**：符合预期
+🔴 **测试-分析**：75294
 
 ---
 
@@ -376,12 +376,12 @@
 
 **Expected Result**：
 - 步骤 2（Bar）：Combined Tooltip 和 Snap 均保持勾选状态。
-- 步骤 3（Point）：Snap 勾选框不再显示（scatter 不支持）；
-- 步骤 4（回到 Line）：Snap 勾选框显示，但状态为未勾选（已被自动禁用，未自动恢复）；Combined Tooltip 保持勾选状态。
+- 步骤 3（Point）：Snap 勾选框不再显示（不支持）；
+- 步骤 4（回到 Line）：Snap和Combined Tooltip 保持勾选状态。
 
 **Risk Covered**：R6、R7、Compatibility
 
-🔴 **测试-分析**：Bug #75091, 75094
+🔴 **测试-分析**：Bug #75091, 75094, Bug #75297
 
 ---
 
