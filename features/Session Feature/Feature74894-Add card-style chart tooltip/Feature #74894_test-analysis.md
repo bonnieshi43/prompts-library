@@ -66,7 +66,6 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 | 无 tooltipCSS 概念 | chart-area 根据 model 动态切换 CSS 类 | 低 |
 | 旧 XML 无 tooltipStyle 属性 | 反序列化时缺省 DEFAULT，向后兼容 | 低 |
 
-
 ---
 
 ## 第三部分：Risk Identification（风险识别）
@@ -115,7 +114,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 - DC 图表对比字段（Current/Prior/Change%）在 CARD 模式下的 tier 分配与数值正确性
 - 特殊图表类型的字段优先级语义（如 Candle/Stock 的收盘价、Gantt 的 Task 名称）
 
-**涉及模块**：Chart 渲染、Tooltip Customize Dialog、Dashboard Viewer/Editor、Binding Editor、Date Comparison（DC）、Multi-style Chart、特殊图表类型（雷达图、Candle/Stock、Gantt、Map、Relation/Network、Box Plot、Word Cloud）
+**涉及模块**：Chart 渲染、Tooltip Customize Dialog、Dashboard Viewer/Editor、Binding Editor、Date Comparison（DC）、Multi-style Chart、特殊图表类型（雷达图、Candle/Stock、Gantt、Map、Relation/Network、Box Plot、Word Cloud等）
 
 **专项检查**：
 - **本地化**：新增 `_#(Tooltip Style)`、`_#(Default)`、`_#(Card)` i18n key，需验证各语言环境下文本正确。
@@ -123,7 +122,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 - **文档一致性**：Customize Tooltip 对话框新增选项，需验证 Help 文档是否同步更新。
 - **Mobile 影响**：`max-width: 40vw / max-height: 40vh / overflow: hidden` 在窄屏设备下需验证内容是否被裁剪。
 
-🔴 **测试-分析**：是否支持脚本（Bug #75067），其他都已验证
+🔴 **测试-分析**：支持脚本（Bug #75067）， Chart1.tooltipStyle = "CARD" or “DEFAULT”
 
 ---
 
@@ -159,10 +158,11 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 | 20 | Box Plot + Card 样式验证 | 特殊图表类型 |
 | 21 | Word Cloud + Card 样式验证 | 特殊图表类型 |
 | 22 | Treemap + Card 样式验证 | 特殊图表类型 |
-| 23 | Mekko Chart + Card 样式验证 | 特殊图表类型 |
-| 24 | 非图表组件不显示 Tooltip Style 选项验证 | UI 专项 |
-| 25 | 本地化文本验证 | UI 专项 |
-| 26 | 文档一致性验证 | UI 专项 |
+| 23 | Scatter Matrix Chart + Card 样式验证 | 特殊图表类型 |
+| 24 | Mekko Chart + Card 样式验证 | 特殊图表类型 |
+| 25 | 非图表组件不显示 Tooltip Style 选项验证 | UI 专项 |
+| 26 | 本地化文本验证 | UI 专项 |
+| 27 | 文档一致性验证 | UI 专项 |
 
 ---
 
@@ -188,7 +188,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 **Risk Covered**：Card 样式核心渲染、位置顺序 tier 分配、字段重排序影响、tier-3 cap 机制
 
-✅ **测试-分析**：Bug #75000 已被开发 Reject。
+✅ **测试-分析**：Bug #75000 已被开发 Reject, Bug #75339
 **Tier 分配规则：按位置顺序，非字段类型**。设计意图：保持视觉优先级、兼容多 Measure 图表、用户可通过字段排序控制、支持自定义模板。
 
 ---
@@ -603,49 +603,61 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ### Scenario 16：Candle / Stock Chart + Card 样式验证
 
-**Objective**：验证 OHLC 字段 tier 分配及日期显示
+**Objective**：验证 OHLC 字段 tier 分配及 X 轴日期始终为 subtitle
 
-**Description**：Candle/Stock 图表的 measures 数组为 `[High, Close, Open, Low]`，按视觉顺序排列。当前实现将 High 放在 tier-1，不符合金融惯例（收盘价应最突出）。
+**Description**：Close 在 tier-1，X 轴日期为 subtitle，Open/High/Low 在 tier-2，Y 轴分组维度在 tier-3。
 
-**Pre-condition**：Candle/Stock 图表，绑定 OHLC + 日期维度，Tooltip Style = Card
+**Pre-condition**：Candle/Stock 图表，绑定 OHLC + 日期维度，可选 Y 轴分组维度（如 `bullOrbear`），Tooltip Style = Card
 
 **Key Steps**：
 1. 设置 Tooltip Style 为 Card
-2. 悬停 K 线数据点
-3. 检查 OHLC 字段的 tier 分配
-4. 确认日期维度存在
+2. 悬停 K 线数据点，检查 tier 分配
+3. （边界）悬停带 Y 轴分组的 K 线，确认日期仍为 subtitle
 
 **Expected Result**：
-- High → tier-1，Close → tier-2，Open/Low → tier-3
-- 日期维度出现在 tooltip 中
+- tier-1：Close: value
+- tier-1.subtitle：Date: value ← X 轴日期始终为 subtitle
+- tier-2：Open/High/Low
+- tier-3：Y 轴分组维度（如 `bullOrbear: Bullish`）← 不抢占 subtitle
 
-**Risk Covered**：OHLC 字段顺序、金融语义一致性
+**Risk Covered**：OHLC 顺序、X 轴日期优先级、Y 轴维度不抢占 subtitle
 
-🔴 **测试-分析**：Bug #75026
+🔴 **测试-分析**：Bug #75026、#75302 已修复。X 轴日期始终为 subtitle，Y 轴维度在 tier-3。
 
 ---
 
 ### Scenario 17：Gantt Chart + Card 样式验证
 
-**Objective**：验证时间字段和 Task 名称的显示
+**Objective**：验证 Gantt 图表按层级规则分配字段：任务名称在 tier-1，时间度量在 tier-2，上下文信息在 tier-3
 
-**Description**：Gantt 图表的 measures = [Start Date, End Date, Milestone]，导致 Task 名称被压到 tier-3，影响用户快速识别任务。
+**Description**：根据 Gantt 图表的 tier 分配规则，最内层 Y 维度（任务名称）作为 headline 显示在 tier-1，时间度量（Start/End/Milestone）作为核心数据显示在 tier-2，外层维度和美学字段作为上下文显示在 tier-3。
 
-**Pre-condition**：Gantt 图表，绑定 Start/End/Task，可选 Milestone，Tooltip Style = Card
+**Pre-condition**：Gantt 图表，绑定：
+- Y 轴：Task（任务名称）+ 可选的分组维度
+- Measures：Start、End、Milestone（可选）
+- X 轴：日期维度
+- 可选绑定颜色/大小等美学字段
+- Tooltip Style = Card
 
 **Key Steps**：
 1. 设置 Tooltip Style 为 Card
 2. 悬停 Gantt 条形
-3. 检查 Start/End 的 tier 分配
-4. 确认 Task 名称存在
+3. 检查各字段的 tier 分配
+4. 确认 Task 名称（最内层 Y 维度）显示在最突出位置
+5. 确认时间度量（Start/End/Milestone）显示在 tier-2
+6. 验证外层维度和美学字段显示在 tier-3
 
 **Expected Result**：
-- Start Date → tier-1，End Date → tier-2
-- Task 名称出现在 tooltip 中
+- **Tier 1（headline，16px/600）**：最内层 Y 维度 — 最后一个 `getRTYFields()` 条目（任务名称），最具体标识悬停的条形
+- **Tier 2（grouped values，13px）**：Start / End / Milestone — 绑定到悬停元素的日期度量，Gantt 的核心数据
+- **Tier 3（context，11px）**：外层 Y 维度 + X 维度 + 所有美学字段（颜色、大小、文本），已通过轴/图例传达的次要上下文
+- **Fallback**：无 Y 维度绑定时 → 统一层级，无 headline，所有行平等
 
-**Risk Covered**：Task 名称可见性、字段优先级语义
+**Risk Covered**：Task 名称可见性、字段优先级语义、时间度量核心地位、上下文信息层级
 
-🔴 **测试-分析**：确认 Task 名称出现在 tooltip 中。当前实现将时间字段放在最突出位置，Task 名称作为核心标识被弱化，存在语义问题。(Bug #75015)
+🔴 **测试-分析**：
+Bug #75015 已修复。修正后的 Gantt Tooltip 字段顺序：任务名称（最内层 Y 维度）显示在 tier-1，时间度量（Start/End/Milestone）显示在 tier-2，外层维度和美学字段显示在 tier-3，符合语义优先级和用户阅读习惯。
+Bug #75307
 
 ---
 
@@ -678,7 +690,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 **Risk Covered**：多层地图美学字段过滤是否影响 Card 模式 tier 分配、地名 tier 位置正确性
 
-🔴 **测试-分析**：分别验证单层和多层地图的 tooltip 差异。多层地图仅最高层显示美学字段是设计决策，可接受。
+🔴 **测试-分析**：Bug #75344, 多层地图仅最高层显示美学字段是设计决策，可接受。
 
 ---
 
@@ -709,26 +721,27 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ### Scenario 20：Box Plot + Card 样式验证
 
-**Objective**：验证箱型统计量 tier 分配及颜色分组维度显示
+**Objective**：验证单度量箱型图的新 tooltip 层级结构
 
-**Description**：Box Plot 的五项统计量均作为 measures，颜色分组维度作为 dims，字段名带 BoxDataSet 前缀（如 `Max_customer_id`）。
+**Description**：单度量箱型图采用专用信息层级：Median 为 tier-1 headline，X维度为 subtitle，Q1/Q3（IQR）在 tier-2，Min/Max 和颜色美学在 tier-3。多度量箱型图沿用原有通用路径。
 
-**Pre-condition**：Box Plot 图表，绑定维度（如 state）、度量（如 customer_id）、颜色分组维度（如 reseller），Tooltip Style = Card
+**Pre-condition**：Box Plot，绑定维度、单一度量、颜色分组维度，Tooltip Style = Card
 
 **Key Steps**：
-1. 设置 Tooltip Style 为 Card，保存
-2. 悬停 Box Plot 数据点，触发 tooltip
-3. 检查统计量的 tier 分配
-4. 确认颜色字段和维度字段显示情况
+1. 设置 Tooltip Style 为 Card
+2. 悬停单度量 Box Plot 数据点
+3. 检查统计量的 tier 分配及 X维度 subtitle
 
 **Expected Result**：
-- `Max_[field]` → tier-1，`Q75_`/`Medium_`/`Q25_`/`Min_` → tier-2
-- 维度（state）和颜色分组维度（reseller）→ tier-3
-- 字段名含统计量前缀（如 `Max_customer_id`）为预期行为
+- `Median_[field]` → tier-1，X维度 → tier-1 subtitle
+- `Q25_[field]` / `Q75_[field]` → tier-2（IQR 分组）
+- `Min_[field]` / `Max_[field]`、颜色维度 → tier-3
+- 多度量箱型图行为不变（Max 领先 tier-1）
+- 无 X维度时无 subtitle，IQR 仍分组在 tier-2
 
-**Risk Covered**：Box Plot 统计量 tier 分配、颜色分组维度可见性
+**Risk Covered**：单度量新层级、X维度 subtitle、IQR 分组、多度量向后兼容
 
-🔴 **测试-分析**：符合预期
+🔴 **测试-分析**：Bug #75341已修复，规则已update
 
 ---
 
@@ -736,7 +749,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 **Objective**：验证词频与词本身的 tier 分配，记录当前行为作为基线
 
-**Description**：Word Cloud 中词本身为 dim、词频为 measure，Card 模式下 measures 优先，导致词频在 tier-1、词本身在 tier-2。
+**Description**：Word Cloud 中词本身为 dim（TextGroup）、词频为 measure，修复后 TextGroup 字段优先显示在 tier-1，符合语义预期。
 
 **Pre-condition**：Word Cloud 图表，绑定文字字段（如 Product）和大小字段（如 Count），Tooltip Style = Card
 
@@ -746,10 +759,11 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 3. 记录词本身和词频各自的 tier
 
 **Expected Result**：
-- 词频（measure）→ tier-1，词本身（dim）→ tier-2
-- 此为当前实现行为（语义上词本身应在 tier-1，待产品确认）
+- `TextGroup`（词本身）→ tier-1
+- `Sum`（词频/度量）→ tier-2
+- `others`（颜色分组维度）→ tier-3
 
-**Risk Covered**：Bug #75035
+**Risk Covered**：Bug #75035 已修复。词本身作为核心标识显示在 tier-1，符合语义预期。
 
 ---
 
@@ -794,7 +808,33 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ---
 
-### Scenario 23：Mekko Chart + Card 样式验证
+### Scenario 23：Scatter Matrix Chart + Card 样式验证
+
+**Objective**：Scatter Matrix 按 #75066 规则分配 tier：分类美学优先 headline，坐标度量 tier-2，补充字段 tier-3
+
+**Pre-condition**：Scatter Matrix：X/Y=Quantity/Paid/Discount；Color=Region；Shape=State；Size=Total；Tooltip Style=Card
+
+**Key Steps**：悬停散点，检查各字段的 tier 分配
+
+**Expected Result**：
+
+| 字段 | Tier | 字号 | 说明 |
+|------|------|------|------|
+| `Region`（Color） | tier-1 | 16px/600 | 颜色美学优先级最高，成为 headline |
+| `State`（Shape） | tier-2 | 13px | 形状美学次之 |
+| `Quantity Purchased`/`Paid`/`Discount`（X/Y） | tier-2 | 13px | 坐标度量，结构行 |
+| `Total`（Size） | tier-3 | 11px | Size 度量，补充字段 |
+
+**规则说明**：
+- Headline 优先级：`color → shape → texture → line → size`，仅分类（非度量）字段符合
+
+**Risk Covered**：美学优先级、度量过滤、结构行 vs 补充字段
+
+🔴 **测试-分析**：#75066， 目前符合设计意图。Region 赢得 headline，Total 在 tier-3 正确。
+
+---
+
+### Scenario 24：Mekko Chart + Card 样式验证
 
 **Objective**：验证 Mekko 图表在 Card 模式下，Measure、外层维度、内层维度三类字段的 tier 分配正确，内层维度不被遗漏
 
@@ -832,7 +872,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ---
 
-### Scenario 24：非图表组件不显示 Tooltip Style 选项验证
+### Scenario 25：非图表组件不显示 Tooltip Style 选项验证
 
 **Scenario Objective**：确认 Tooltip Style 选项（Default/Card 单选按钮）仅在图表组件的 Customize Tooltip 中显示，非图表组件（如 Table、Text）中不显示。
 
@@ -853,7 +893,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ---
 
-### Scenario 25：本地化文本验证
+### Scenario 26：本地化文本验证
 
 **Scenario Objective**：验证新增 i18n key（`_#(Tooltip Style)`、`_#(Default)`、`_#(Card)`）在各语言环境下正确显示，无 key 直出或乱码。
 
@@ -871,7 +911,7 @@ https://inetsoft-technology.github.io/stylebi-docs/InetSoftUserDocumentation/1.1
 
 ---
 
-### Scenario 26：文档一致性验证
+### Scenario 27：文档一致性验证
 
 **Scenario Objective**：验证新增的 Card Tooltip 功能在官方文档中有完整、准确的说明，确保用户能够了解并正确使用该功能。
 
