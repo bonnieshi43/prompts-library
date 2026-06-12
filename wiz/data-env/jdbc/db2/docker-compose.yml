@@ -1,0 +1,38 @@
+services:
+  db2-wiz:
+    image: ibmcom/db2:11.5.8.0
+    container_name: db2-annotation-test
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "0.0.0.0:50000:50000"
+    environment:
+      LICENSE: accept
+      DB2INSTANCE: db2inst1
+      DB2INST1_PASSWORD: test123456
+      DBNAME: ANNTEST
+      BLUDB: false
+      ENABLE_ORACLE_COMPATIBILITY: false
+      UPDATEAVAIL: N
+      TO_CREATE_DB: true
+      TZ: Asia/Shanghai
+      DB2CODEPAGE: 1208
+    volumes:
+      - db2_annotation_data:/database
+      - ./init-db.sh:/var/custom/init-db.sh:ro
+      - ./init.sql:/var/custom/sql/init.sql:ro
+      - ./load_data.sql:/var/custom/sql/load_data.sql:ro
+      - ./data:/var/custom/data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "su - db2inst1 -c 'db2 connect to ANNTEST >/dev/null' || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 15
+      start_period: 90s
+
+volumes:
+  db2_annotation_data:
+  init_script:
+  init_sql:
+  load_sql:
+  csv_data:
