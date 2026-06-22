@@ -18,9 +18,9 @@
 
 - 执行 multi_org 相关的 py case 时：
 
-- 创建 org-ci1（clone host-org）/ ci1（success123），授予 ci1（Org Admin）role
+- 创建 org-ci1（clone host-org）/ ci1（Admin1234!），授予 ci1（Org Admin）role
 
-- 创建 org-ci2（clone host-org）/ ci2（success123），授予 ci2（Org Admin）role
+- 创建 org-ci2（clone host-org）/ ci2（Admin1234!），授予 ci2（Org Admin）role
 
 - 执行 Scenario_multi_org_with_shared_assets.py case 时：需要在 EM properties 中配置"security.exposedefaultorgtoall=true"
 
