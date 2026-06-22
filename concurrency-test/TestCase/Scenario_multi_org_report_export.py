@@ -225,8 +225,8 @@ class MultiOrgExportUser(HttpUser):
     wait_time = between(1, 5)
 
     org_accounts = [
-        ("org-ci1", "ci1", "success123", 1),
-        ("org-ci2", "ci2", "success123", 1),
+        ("org-ci1", "ci1", "Admin1234!", 1),
+        ("org-ci2", "ci2", "Admin1234!", 1),
     ]
 
     def on_start(self):

@@ -19,9 +19,31 @@ class InetsoftDashboardTasks(TaskSet):
         ("1^128^__NULL__^Examples/Sales Summary^host-org", 1)
     ]
     identifier = None
+    asset = None
+
+    def _close_current_dashboard(self):
+        if self.identifier is None:
+            return
+
+        response = self.client.delete(
+            f"/api/public/viewsheets/open/{self.identifier}",
+            headers=self.user.headers,
+        )
+
+        print(f"Closed viewsheet with identifier: {self.identifier}, status code: {response.status_code}")
+        if response.status_code not in (200, 204, 404, 410):
+            print(f"Failed to close viewsheet: {response.text}")
+
+        self.identifier = None
+        self.asset = None
+
+    def on_stop(self):
+        self._close_current_dashboard()
 
     @task(3)
     def openDashboards(self):
+        self._close_current_dashboard()
+
         self.asset = random.choices([asset[0] for asset in self.assets], weights=[asset[1] for asset in self.assets], k=1)[0]
         vs = {"asset": self.asset}
 
@@ -79,9 +101,33 @@ class InetsoftWSTasks(TaskSet):
         ("1^2^__NULL__^Examples/Sales Revenue^host-org", 1)
     ]
     wsIdentifier = None
+    asset = None
+    ws = None
+
+    def _close_current_worksheet(self):
+        if self.wsIdentifier is None:
+            return
+
+        response = self.client.delete(
+            f"/api/public/worksheets/open/{self.wsIdentifier}",
+            headers=self.user.headers,
+        )
+
+        print(f"Closed worksheet with identifier: {self.wsIdentifier}, status code: {response.status_code}")
+        if response.status_code not in (200, 204, 404, 410):
+            print(f"Failed to close worksheet: {response.text}")
+
+        self.wsIdentifier = None
+        self.asset = None
+        self.ws = None
+
+    def on_stop(self):
+        self._close_current_worksheet()
 
     @task(2)
     def openWS(self):
+        self._close_current_worksheet()
+
         self.asset = random.choices([ws[0] for ws in self.worksheets], weights=[ws[1] for ws in self.worksheets], k=1)[0]
         self.ws = {"asset": self.asset}
 
@@ -118,7 +164,7 @@ class ProductAPIUser(HttpUser):
 
     def on_start(self):
 
-        response = self.client.post("/api/public/login", json={"username": "ci1", "orgID": "host-org", "password": "success123"})
+        response = self.client.post("/api/public/login", json={"username": "ci1", "orgID": "host-org", "password": "Admin1234!"})
 
         if response.status_code == 200:
             try:

@@ -36,11 +36,41 @@ class InetsoftVSAndWSTasks(TaskSet):
     current_vs_asset = None
     current_ws_asset = None
 
+    def _close_current_open_assets(self):
+        if self.ws_identifier:
+            ws_resp = self.client.delete(
+                f"/api/public/worksheets/open/{self.ws_identifier}",
+                headers=self.user.headers
+            )
+            print(f"[WS] Close worksheet identifier={self.ws_identifier}, status={ws_resp.status_code}")
+            if ws_resp.status_code not in (200, 204, 404, 410):
+                print(f"[WS] Failed to close worksheet: {ws_resp.status_code}, {ws_resp.text}")
+
+            self.ws_identifier = None
+            self.current_ws_asset = None
+
+        if self.vs_identifier:
+            vs_resp = self.client.delete(
+                f"/api/public/viewsheets/open/{self.vs_identifier}",
+                headers=self.user.headers
+            )
+            print(f"[VS] Close viewsheet identifier={self.vs_identifier}, status={vs_resp.status_code}")
+            if vs_resp.status_code not in (200, 204, 404, 410):
+                print(f"[VS] Failed to close viewsheet: {vs_resp.status_code}, {vs_resp.text}")
+
+            self.vs_identifier = None
+            self.current_vs_asset = None
+
+    def on_stop(self):
+        self._close_current_open_assets()
+
     @task(3)
     def open_viewsheet_and_worksheet(self):
         """
         Open a viewsheet, then open the corresponding worksheet.
         """
+        self._close_current_open_assets()
+
         pair = random.choices(
             self.vs_ws_pairs,
             weights=[p[2] for p in self.vs_ws_pairs],
@@ -142,7 +172,7 @@ class ProductAPIUser(HttpUser):
 
         resp = self.client.post(
             "/api/public/login",
-            json={"username": "ci1", "orgID": "host-org", "password": "success123"}
+            json={"username": "ci1", "orgID": "host-org", "password": "Admin1234!"}
         )
 
         if resp.status_code == 200:
