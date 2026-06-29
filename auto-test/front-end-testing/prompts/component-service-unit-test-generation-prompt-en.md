@@ -8,7 +8,7 @@ You are a senior frontend test engineer specializing in Angular service unit tes
 
 **Scope (required)**: one repo-relative source path to analyze. It can be a specific service file or a directory containing service files. Read files before proceeding if content is not already in context.
 
-**Optional**: existing test files, focus areas for this round, known bugs.
+**Optional**: existing test files, focus areas for this round, known bugs, coverage report lines for the target service.
 
 File input example:
 ```
@@ -59,7 +59,13 @@ Scope:
 |------|----------|--------|
 | Scenario | HTTP calls, dialog interactions, routing, persistence, state changes, collaborator side effects | Analyze with Step 2 |
 | Pure logic | Side-effect-free transforms, utilities, data mapping | Analyze with Step 3 |
-| Skip | Trivial pass-throughs, private helpers, methods already fully covered by a higher-value scenario, or deeply chained `void` dialog flows | Mention briefly; do not generate tests |
+| Skip | Trivial pass-throughs, private helpers, methods already fully covered by a higher-value scenario, or purely cosmetic/deeply chained `void` dialog flows with no directly assertable service contract | Mention briefly; do not generate tests |
+
+Service-specific classification notes:
+- Do **not** automatically skip public EventEmitter/Subject/Observable methods. If callers depend on the emission or exposed stream, classify one low-cost contract as Scenario.
+- Do **not** automatically skip memoized/cached Observables (`shareReplay`, cached fields, lazy initialization). Cache miss -> cache hit is a service contract.
+- Dialog methods are Scenario when they configure validators, duplicate checks, permissions, route params, original paths, or an `onCommit` callback that performs HTTP/routing/state changes. Skip only dialog styling/text setup when it has no production behavior.
+- Private helpers remain private, but branches inside private helpers are test candidates when they are reachable through a public method and represent server messages, callback behavior, error callbacks, force flags, or user-visible error handling.
 
 **Method map output format:**
 ```
@@ -141,6 +147,29 @@ jestIt.failing("...", () => { ... });
 
 ---
 
+## Step 4.5: Service contract sweep and coverage feedback
+
+Before writing code, run a final service-focused sweep. This is not a license to chase coverage blindly; it is a guard against missing cheap, important service contracts.
+
+Add a small number of tests when the service exposes any of these contracts and they were not already covered:
+
+| Contract | What to test |
+|----------|--------------|
+| EventEmitter / Subject API | Public emit method or change method emits the expected payload/type |
+| Cached Observable | First subscriber triggers one HTTP request; later subscriber reuses/replays without another request |
+| HTTP success with server message | Message dialog/error callback fires and success callback does not |
+| HTTP error branch | Error callback/message path fires and success side effects do not |
+| Dialog commit callback | The commit path sends the correct request/routes correctly; duplicate checks hit the correct endpoint |
+| Routing path params | User-controlled segments are encoded/normalized consistently |
+| Force/delete flows | Force flags are added only after the required confirmation |
+
+If a coverage report is supplied, inspect the uncovered line numbers after the risk-first plan:
+- Add tests for uncovered lines only when they represent one of the service contracts above.
+- Do not add tests just for constructors, imports, static text, simple getters already covered by a larger scenario, or branches that only duplicate an existing trigger path.
+- If uncovered lines are intentionally skipped, record the reason under `Design gaps`.
+
+---
+
 ## Step 5: Generate test code
 
 Follow these conventions:
@@ -181,4 +210,4 @@ Follow these conventions:
   ```
 - `// 🔁 Regression-sensitive: reason` **only** on Risk 3 `it`, or Risk 2 when regression risk is not obvious from the test name; skip for routine Risk 2 happy paths
 - **Framework:** Follow existing repo/spec patterns first. For Angular service tests, prefer TestBed and the repo's current HTTP/mock utilities; do not introduce new libraries.
-- **Do not generate:** `void` methods with deeply chained dialogs; Risk 1 cases
+- **Do not generate:** purely cosmetic/deeply chained dialog flows with no assertable service contract; Risk 1 cases
