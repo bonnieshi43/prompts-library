@@ -15,6 +15,8 @@
 | **RC3** 算法大数据集 | filter/flatten/sort/search 在 N > 500 时耗时退化 | L1 bench 测量 |
 | **RC4** Default CD 热路径 | 未设 `OnPush` 的组件在高频更新父级下被反复检查 | 代码审查：找 CD 策略为 Default 且父级频繁更新的组件 |
 | **RC5** 过度 server round-trip | 单次用户操作触发多次 server event/请求，无 debounce 或去重 | 代码审查：找无 debounce 的 `sendEvent()` |
+| **RC6** 后端/API 查询路径慢 | 返回结果集很小，但接口耗时高，瓶颈不在前端 DOM/CD | 接口 trace：SQL/metadata browse/service 层耗时拆分 |
+| **RC7** 生命周期清理/内存泄漏 | tab 切换、编辑器切换后 detached DOM nodes 或订阅未释放持续累积 | Chrome heap snapshot + Angular destroy/unsubscribe 代码审查 |
 
 ---
 
@@ -37,6 +39,12 @@
 | chart 复杂渲染 | **RC4** | `vs-chart.component`：无 `OnPush`，每次交互全量 server round-trip | ⏳ Bug #75513 open |
 | Composer wizard 多列选择 | **RC5** | `object-wizard-pane.component`：每次列选择立即发 server event，无 debounce | ⏳ Bug #75514 open |
 | chart action 多次 GetImage | **RC5** | `vs-chart.component`：Axis/Legend/Plot 各自独立请求，无合并/防抖 | ⏳ Bug #75516 open |
+| worksheet 打开后长时间 Angular CD 阻塞 | **RC4** | 大 worksheet 打开触发长时间 Angular change detection | ❌ Bug #75536 rejected，存在但是难重现需要继续跟踪 |
+| 多 chart 下 Hide Axis 很慢 | **RC5** | chart visibility/action 操作在多图表场景下触发重复刷新/请求 | ✅ Bug #75517 resolved |
+| tab 切换导致 detached DOM nodes 累积 | **RC7** | 主界面 tab 切换后 DOM/组件生命周期清理不完整 | ✅ Bug #75515 resolved|
+| Maintenance Dashboard Static 加载 7s+ | **RC4** | Zone.js main thread blocking，dashboard 初始加载触发长任务/CD 热路径 | ✅ Bug #75497 resolved |
+| Edit Icon 切到 Full Editor 后退出慢 | **RC4** | 多组件 editor 切换/退出触发长 CD 或同步销毁路径，需继续核查具体热点 | ✅ Bug #75495 resolved |
+| browse-data 小结果集但接口耗时约 13s | **RC6** | `/api/composer/ws/assembly-condition-dialog/browse-data` 返回少量数据但 server/API 路径耗时异常 | 🆕 Bug #75551 new |
 
 ---
 
