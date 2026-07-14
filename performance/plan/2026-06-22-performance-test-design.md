@@ -136,9 +136,15 @@ L1 和 L2 不依赖任何服务端，**可与阶段 1 的 k6 工作并行推进*
 4. Dashboard scroll、chart/table 复杂操作
 5. Chart action/mode-switch 触发多次 GetImage（RC5 chart 变体）→ Bug #75516 open
 6. Composer wizard 多列同时选择（RC5）→ Bug #75514 open
-7. Add Column（多 Banding）响应慢——服务端 SQL 效率 + `AssetDataCache` 命中率低（类 Bug #74534）；→ **L4 k6 + 缓存监控（C.1）**
-8. Switch Provider / Switch Bookmark 慢——服务端数据加载主导；→ **L4 k6 + SLA 阈值**
-9. Embedded VS Action 慢——服务端内嵌 VS 执行路径 overhead；→ **L3 Playwright + L4 k6**
+7. Worksheet 打开后长时间 Angular change detection 阻塞（RC4）→ Bug #75536 rejected
+8. 多 chart 下 Hide Axis 很慢（RC5）→ Bug #75517 resolved
+9. Tab 切换导致 detached DOM nodes 累积（RC7）→ Bug #75515 resolved，未发布
+10. Maintenance Dashboard Static 加载 7s+，Zone.js main thread blocking（RC4）→ Bug #75497 resolved
+11. Edit Icon 切到 Full Editor 后退出慢，多组件 editor 切换/退出路径（RC4，待核查具体热点）→ Bug #75495 resolved
+12. `/api/composer/ws/assembly-condition-dialog/browse-data` 小结果集但接口耗时约 13s（RC6）→ Bug #75551 new
+13. Add Column（多 Banding）响应慢——服务端 SQL 效率 + `AssetDataCache` 命中率低（类 Bug #74534）；→ **L4 k6 + 缓存监控（C.1）**
+14. Switch Provider / Switch Bookmark 慢——服务端数据加载主导；→ **L4 k6 + SLA 阈值**
+15. Embedded VS Action 慢——服务端内嵌 VS 执行路径 overhead；→ **L3 Playwright + L4 k6**
 
 **根因分类：**
 
@@ -149,6 +155,8 @@ L1 和 L2 不依赖任何服务端，**可与阶段 1 的 k6 工作并行推进*
 | **RC3** 算法大数据集 | filter/flatten/sort/search 在 N > 500 时耗时退化 | bench 测量 | L1（bench N=100/1000/5000） |
 | **RC4** Default CD 热路径 | 未设 `OnPush` 的组件位于高频更新父级下，每次父 CD 均检查 | 找 CD 策略为 Default 且父级频繁更新的组件 | 代码审查（`ɵsetProfiler` 在 Angular 21 不可用） |
 | **RC5** 过度 server round-trip | 单次用户操作触发多次 server event/请求，无 debounce 或去重 | 代码审查：找无 debounce 的 `sendEvent()` | 代码审查 + 修复 |
+| **RC6** 后端/API 查询路径慢 | 返回结果集很小，但接口耗时高，瓶颈不在前端 DOM/CD | 接口 trace：SQL/metadata browse/service 层耗时拆分 | L4 + 服务端 trace/监控 |
+| **RC7** 生命周期清理/内存泄漏 | tab 切换、编辑器切换后 detached DOM nodes 或订阅未释放持续累积 | Chrome heap snapshot + Angular destroy/unsubscribe 代码审查 | L3 memory/soak + 代码审查 |
 
 > prescan `logic_lines` 仍可辅助定位 RC3 候选（大文件更可能含复杂算法），但不是唯一准入条件。
 
@@ -163,6 +171,12 @@ L1 和 L2 不依赖任何服务端，**可与阶段 1 的 k6 工作并行推进*
 | `vs-table.component` | — | scroll/wheel 均用 `outOfZone`（RC1 风险：无）；sort/filter 发往后端不触发前端全量重渲染；OnPush ✅ | ✅ 无高风险 |
 | `ChartObjectAreaBase` | **RC1** | 构造器 `fromEvent(window, 'resize')` 在 Zone 内，10 图表 ≈ 140 次 CD/resize 事件（Bug #75511） | ATL 不适用，L3 only |
 | `vs-chart.component`（GetImage 多次） | **RC5** | mode switch / 联动 action 时多次触发 `GetImageEvent`，Axis/Legend/Plot 各部件各自独立请求，无合并/防抖 | ⏳ Bug #75516 open |
+| 大 worksheet 打开路径 | **RC4** | 打开后触发长时间 Angular change detection，属于 Default CD/同步渲染热路径风险 | ❌ Bug #75536 rejected |
+| `vs-chart.component`（Hide Axis/visibility action） | **RC5** | 多 chart 场景下 action/visibility 操作容易触发重复刷新/请求，用户感知慢 | ✅ Bug #75517 resolved |
+| 主界面 tab 切换路径 | **RC7** | tab 切换后 detached DOM nodes 累积，需关注组件 destroy、订阅释放、DOM 引用清理 | ✅ Bug #75515 resolved，未发布 |
+| `Maintenance Dashboard Static` viewsheet | **RC4** | Zone.js main thread blocking，初始加载触发长任务/CD 热路径 | ✅ Bug #75497 resolved |
+| Edit Icon → Full Editor 切换/退出路径 | **RC4** | 多组件 editor 切换/退出触发长 CD 或同步销毁路径，具体热点待代码核查 | ✅ Bug #75495 resolved |
+| `assembly-condition-dialog/browse-data` API | **RC6** | `/api/composer/ws/assembly-condition-dialog/browse-data` 返回少量数据但耗时约 13s，前端小结果集不是瓶颈 | 🆕 Bug #75551 new |
 
 ---
 
@@ -950,4 +964,3 @@ CI/CD：
 脚本：
   scripts/parse-perf-results.ts
   scripts/generate-perf-report.ts
-
