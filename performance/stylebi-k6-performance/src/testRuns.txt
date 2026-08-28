@@ -1,0 +1,73 @@
+D1
+
+../k6 run -e USERS=400  -e RAMPUPTIME=800  -e QUIET_PERIOD=600 --summary-export results/d1-400.json  dist/test-d1.js --quiet
+../k6 run -e USERS=500  -e RAMPUPTIME=1000 -e QUIET_PERIOD=600 --summary-export results/d1-500.json  dist/test-d1.js --quiet
+../k6 run -e USERS=600  -e RAMPUPTIME=1200 -e QUIET_PERIOD=600 --summary-export results/d1-600.json  dist/test-d1.js --quiet
+../k6 run -e USERS=700  -e RAMPUPTIME=1400 -e QUIET_PERIOD=600 --summary-export results/d1-700.json  dist/test-d1.js --quiet
+../k6 run -e USERS=800  -e RAMPUPTIME=1600 -e QUIET_PERIOD=600 --summary-export results/d1-800.json  dist/test-d1.js --quiet
+../k6 run -e USERS=900  -e RAMPUPTIME=1800 -e QUIET_PERIOD=600 --summary-export results/d1-900.json  dist/test-d1.js --quiet
+../k6 run -e USERS=1000 -e RAMPUPTIME=2000 -e QUIET_PERIOD=0   --summary-export results/d1-1000.json dist/test-d1.js --quiet
+
+
+D2
+
+../k6 run -e TEST_FUNCTION=twoChart      -e QUIET_PERIOD=600 --summary-export results/d2-2Chart.json     dist/test-d2.js --quiet
+../k6 run -e TEST_FUNCTION=threeChart    -e QUIET_PERIOD=600 --summary-export results/d2-3Chart.json     dist/test-d2.js --quiet
+../k6 run -e TEST_FUNCTION=fourChart     -e QUIET_PERIOD=600 --summary-export results/d2-4Chart.json     dist/test-d2.js --quiet
+../k6 run -e TEST_FUNCTION=fourChart4Sel -e QUIET_PERIOD=600 --summary-export results/d2-4Chart4Sel.json dist/test-d2.js --quiet
+
+
+D3
+
+../k6 run -e INACTIVECOUNT=600 -e QUIET_PERIOD=600 --summary-export results/d3-600.json  dist/test-d3.js --quiet
+../k6 run -e INACTIVECOUNT=400 -e QUIET_PERIOD=600 --summary-export results/d3-400.json  dist/test-d3.js --quiet
+../k6 run -e INACTIVECOUNT=200 -e QUIET_PERIOD=600 --summary-export results/d3-200.json  dist/test-d3.js --quiet
+../k6 run -e INACTIVECOUNT=0   -e QUIET_PERIOD=0   --summary-export results/d3-0.json    dist/test-d3.js --quiet
+
+
+E1
+
+../k6 run -e VSNAME=VSTest1_1M  -e QUIET_PERIOD=600 --summary-export results/e1-1M.json   dist/test-e1.js --quiet
+../k6 run -e VSNAME=VSTest1_12M -e QUIET_PERIOD=600 --summary-export results/e1-12M.json  dist/test-e1.js --quiet
+../k6 run -e VSNAME=VSTest1_40M -e QUIET_PERIOD=0   --summary-export results/e1-40M.json  dist/test-e1.js --quiet
+
+../k6 run -e VSNAME=VSTest1_1M  -e QUIET_PERIOD=600 --summary-export results/e1-1Mmv.json   dist/test-e1.js --quiet
+../k6 run -e VSNAME=VSTest1_12M -e QUIET_PERIOD=600 --summary-export results/e1-12Mmv.json  dist/test-e1.js --quiet
+../k6 run -e VSNAME=VSTest1_40M -e QUIET_PERIOD=0   --summary-export results/e1-40Mmv.json  dist/test-e1.js --quiet
+
+E2
+
+../k6 run -e USERS=20  -e RAMPUPTIME=40  -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-20.json  dist/test-e2.js --quiet
+../k6 run -e USERS=50  -e RAMPUPTIME=100 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-50.json  dist/test-e2.js --quiet
+../k6 run -e USERS=100 -e RAMPUPTIME=200 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-100.json dist/test-e2.js --quiet
+../k6 run -e USERS=200 -e RAMPUPTIME=400 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-200.json dist/test-e2.js --quiet
+../k6 run -e USERS=300 -e RAMPUPTIME=600 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-300.json dist/test-e2.js --quiet
+../k6 run -e USERS=400 -e RAMPUPTIME=800 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e2-400.json dist/test-e2.js --quiet
+
+E3
+
+../k6 run -e USERS=20  -e RAMPUPTIME=40  -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-20.json  dist/test-e2.js --quiet
+../k6 run -e USERS=50  -e RAMPUPTIME=100 -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-50.json  dist/test-e2.js --quiet
+../k6 run -e USERS=100 -e RAMPUPTIME=200 -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-100.json dist/test-e2.js --quiet
+../k6 run -e USERS=200 -e RAMPUPTIME=400 -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-200.json dist/test-e2.js --quiet
+../k6 run -e USERS=300 -e RAMPUPTIME=600 -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-300.json dist/test-e2.js --quiet
+../k6 run -e USERS=400 -e RAMPUPTIME=800 -e QUIET_PERIOD=600 -e VSNAME=WonLostAnalysis2 --summary-export results/e3-400.json dist/test-e2.js --quiet
+
+
+E5
+
+../k6 run -e USERS=20  -e RAMPUPTIME=40  -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-20.json  dist/test-e2.js --quiet
+../k6 run -e USERS=50  -e RAMPUPTIME=100 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-50.json  dist/test-e2.js --quiet
+../k6 run -e USERS=100 -e RAMPUPTIME=200 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-100.json dist/test-e2.js --quiet
+../k6 run -e USERS=200 -e RAMPUPTIME=400 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-200.json dist/test-e2.js --quiet
+../k6 run -e USERS=300 -e RAMPUPTIME=600 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-300.json dist/test-e2.js --quiet
+../k6 run -e USERS=400 -e RAMPUPTIME=800 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_12M --summary-export results/e5-400.json dist/test-e2.js --quiet
+
+E6
+
+../k6 run -e USERS=20  -e RAMPUPTIME=40  -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-20.json  dist/test-e2.js --quiet
+../k6 run -e USERS=50  -e RAMPUPTIME=100 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-50.json  dist/test-e2.js --quiet
+../k6 run -e USERS=100 -e RAMPUPTIME=200 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-100.json dist/test-e2.js --quiet
+../k6 run -e USERS=200 -e RAMPUPTIME=400 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-200.json dist/test-e2.js --quiet
+../k6 run -e USERS=300 -e RAMPUPTIME=600 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-300.json dist/test-e2.js --quiet
+../k6 run -e USERS=400 -e RAMPUPTIME=800 -e QUIET_PERIOD=600 -e VSNAME=VSTest1_40M --summary-export results/e6-400.json dist/test-e2.js --quiet

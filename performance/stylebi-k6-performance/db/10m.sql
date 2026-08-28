@@ -1,0 +1,100 @@
+-- Scale dataset to 10M orders for performance testing
+-- Run this AFTER db/init.sql
+-- WARNING: This script can take significant time and disk space.
+
+BEGIN;
+
+-- Clean old scaled tables
+DROP TABLE IF EXISTS "ORDER_DETAILS_10M";
+DROP TABLE IF EXISTS "ORDERS_10M";
+
+-- Create target tables (copy structure, then add PKs explicitly)
+CREATE TABLE "ORDERS_10M" (
+  LIKE "ORDERS"
+  INCLUDING DEFAULTS
+  INCLUDING GENERATED
+  INCLUDING IDENTITY
+  INCLUDING STORAGE
+  INCLUDING COMMENTS
+);
+
+ALTER TABLE "ORDERS_10M"
+  ADD CONSTRAINT "PK_ORDERS_10M" PRIMARY KEY ("ORDER_ID");
+
+CREATE TABLE "ORDER_DETAILS_10M" (
+  LIKE "ORDER_DETAILS"
+  INCLUDING DEFAULTS
+  INCLUDING GENERATED
+  INCLUDING IDENTITY
+  INCLUDING STORAGE
+  INCLUDING COMMENTS
+);
+
+ALTER TABLE "ORDER_DETAILS_10M"
+  ADD CONSTRAINT "PK_ORDER_DETAILS_10M" PRIMARY KEY ("ORDER_ID", "PRODUCT_ID");
+
+-- Generate 10,000,000 orders by expanding the base ORDERS table
+WITH expanded AS (
+  SELECT
+    o."ORDER_ID" AS old_order_id,
+    o."CUSTOMER_ID",
+    o."EMPLOYEE_ID",
+    o."ORDER_DATE",
+    o."DISCOUNT",
+    o."PAID",
+    row_number() OVER (ORDER BY g.n, o."ORDER_ID") AS rn
+  FROM "ORDERS" o
+  CROSS JOIN generate_series(1, 3400) AS g(n) -- 3000 * 3400 = 10,200,000
+),
+picked AS (
+  SELECT *
+  FROM expanded
+  WHERE rn <= 10000000
+)
+INSERT INTO "ORDERS_10M" ("ORDER_ID", "CUSTOMER_ID", "EMPLOYEE_ID", "ORDER_DATE", "DISCOUNT", "PAID")
+SELECT
+  5000000 + rn AS "ORDER_ID",
+  "CUSTOMER_ID",
+  "EMPLOYEE_ID",
+  "ORDER_DATE" + ((rn % 1460) || ' days')::interval,
+  "DISCOUNT",
+  "PAID"
+FROM picked;
+
+-- Copy matching order details for the generated 10M orders
+WITH expanded AS (
+  SELECT
+    o."ORDER_ID" AS old_order_id,
+    row_number() OVER (ORDER BY g.n, o."ORDER_ID") AS rn
+  FROM "ORDERS" o
+  CROSS JOIN generate_series(1, 3400) AS g(n)
+),
+picked AS (
+  SELECT *
+  FROM expanded
+  WHERE rn <= 10000000
+)
+INSERT INTO "ORDER_DETAILS_10M" ("ORDER_ID", "PRODUCT_ID", "QUANTITY")
+SELECT
+  5000000 + p.rn AS "ORDER_ID",
+  od."PRODUCT_ID",
+  od."QUANTITY"
+FROM picked p
+JOIN "ORDER_DETAILS" od
+  ON od."ORDER_ID" = p.old_order_id;
+
+-- Add practical indexes for report/query workload
+CREATE INDEX "IDX_ORDERS_10M_CUSTOMER" ON "ORDERS_10M" ("CUSTOMER_ID");
+CREATE INDEX "IDX_ORDERS_10M_EMPLOYEE" ON "ORDERS_10M" ("EMPLOYEE_ID");
+CREATE INDEX "IDX_ORDERS_10M_DATE" ON "ORDERS_10M" ("ORDER_DATE");
+CREATE INDEX "IDX_ORDER_DETAILS_10M_PRODUCT" ON "ORDER_DETAILS_10M" ("PRODUCT_ID");
+
+ANALYZE "ORDERS_10M";
+ANALYZE "ORDER_DETAILS_10M";
+
+COMMIT;
+
+-- Verification
+SELECT 'ORDERS_10M' AS table_name, COUNT(*) AS rows FROM "ORDERS_10M"
+UNION ALL
+SELECT 'ORDER_DETAILS_10M' AS table_name, COUNT(*) AS rows FROM "ORDER_DETAILS_10M";

@@ -1,0 +1,710 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  PostgreSQL database for StyleBI k6 load testing. Deploy this alongside your StyleBI stack.
+  Automatically initializes the database with test data using an ECS task.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "Database Configuration"
+        Parameters:
+          - ResourceNamePrefix
+          - DatabaseInstanceClass
+          - DatabaseAllocatedStorage
+          - DatabasePassword
+          - MaxConnections
+          - DeleteData
+      - Label:
+          default: "Network Configuration"
+        Parameters:
+          - VpcId
+          - VpcCidr
+          - SubnetIds
+          - StyleBISecurityGroupId
+      - Label:
+          default: "ECS Configuration (for automatic initialization)"
+        Parameters:
+          - EcsClusterArn
+          - AssignPublicIp
+
+Parameters:
+  ResourceNamePrefix:
+    Description: The prefix for generated resource names (should match your StyleBI stack)
+    Type: String
+  VpcId:
+    Description: The VPC where StyleBI is deployed
+    Type: "AWS::EC2::VPC::Id"
+  VpcCidr:
+    Description: The CIDR for the VPC
+    Type: String
+    Default: "172.31.0.0/16"
+  SubnetIds:
+    Description: Subnets for the database (use same subnets as StyleBI)
+    Type: "CommaDelimitedList"
+  StyleBISecurityGroupId:
+    Description: Security group ID of the StyleBI ECS service (for ingress rules)
+    Type: "AWS::EC2::SecurityGroup::Id"
+  EcsClusterArn:
+    Description: ARN of the StyleBI ECS cluster (for running the database initialization task)
+    Type: String
+  AssignPublicIp:
+    Description: Whether to assign a public IP to the initialization task (use ENABLED for public subnets)
+    Type: String
+    Default: "ENABLED"
+    AllowedValues:
+      - "ENABLED"
+      - "DISABLED"
+  DatabaseInstanceClass:
+    Description: The instance type for the RDS database
+    Type: String
+    Default: "db.t3.medium"
+    AllowedValues:
+      - db.t3.micro
+      - db.t3.small
+      - db.t3.medium
+      - db.t3.large
+      - db.r6g.large
+      - db.r6g.xlarge
+  DatabaseAllocatedStorage:
+    Description: The allocated storage size in GB
+    Type: Number
+    Default: 20
+    MinValue: 20
+    MaxValue: 1000
+  DatabasePassword:
+    Description: Master password for the database
+    Type: String
+    NoEcho: true
+    MinLength: 8
+  MaxConnections:
+    Description: Maximum database connections
+    Type: Number
+    Default: 600
+  DeleteData:
+    Description: If true, deletes the database when the stack is deleted
+    Type: String
+    Default: "true"
+    AllowedPattern: "true|false"
+
+Conditions:
+  DeleteDataCondition: !Equals [!Ref DeleteData, "true"]
+
+Resources:
+  # ===========================================
+  # Database Resources
+  # ===========================================
+
+  # Security group for RDS
+  DatabaseSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Allow StyleBI servers to connect to PostgreSQL"
+      GroupName: !Join ["-", [!Ref ResourceNamePrefix, "db-sg"]]
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        # Allow from StyleBI ECS service
+        - IpProtocol: "TCP"
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref StyleBISecurityGroupId
+        # Allow from VPC (for debugging/admin access and init task)
+        - IpProtocol: "TCP"
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref VpcCidr
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ResourceNamePrefix, "db-sg"]]
+
+  # Subnet group for RDS
+  DatabaseSubnetGroup:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "Subnet group for StyleBI test database"
+      DBSubnetGroupName: !Join ["-", [!Ref ResourceNamePrefix, "db-subnet-group"]]
+      SubnetIds: !Ref SubnetIds
+
+  # Parameter group for custom settings
+  DatabaseParameterGroup:
+    Type: "AWS::RDS::DBParameterGroup"
+    Properties:
+      Family: postgres15
+      Description: "Custom parameters for StyleBI k6 test database"
+      Parameters:
+        max_connections: !Ref MaxConnections
+
+  # RDS PostgreSQL instance
+  Database:
+    Type: "AWS::RDS::DBInstance"
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Join ["-", [!Ref ResourceNamePrefix, "test-db"]]
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      Engine: postgres
+      EngineVersion: "15"
+      AllocatedStorage: !Ref DatabaseAllocatedStorage
+      StorageType: gp3
+      DBName: orders
+      MasterUsername: testuser
+      MasterUserPassword: !Ref DatabasePassword
+      VPCSecurityGroups:
+        - !Ref DatabaseSecurityGroup
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      PubliclyAccessible: false
+      DBParameterGroupName: !Ref DatabaseParameterGroup
+      BackupRetentionPeriod: !If
+        - DeleteDataCondition
+        - 0
+        - 7
+      MultiAZ: false
+      EnablePerformanceInsights: false
+      Tags:
+        - Key: Name
+          Value: !Join ["-", [!Ref ResourceNamePrefix, "test-db"]]
+        - Key: Purpose
+          Value: "k6-load-testing"
+
+  # ===========================================
+  # Database Initialization (ECS Task + Lambda)
+  # ===========================================
+
+  # CloudWatch Log Group for init task
+  InitTaskLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Join ["/", ["/ecs", !Ref ResourceNamePrefix, "db-init"]]
+      RetentionInDays: 7
+
+  # IAM Role for ECS Task Execution (pulling images, writing logs)
+  InitTaskExecutionRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Join ["-", [!Ref ResourceNamePrefix, "db-init-exec-role"]]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+
+  # IAM Role for the ECS Task itself (no special permissions needed)
+  InitTaskRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Join ["-", [!Ref ResourceNamePrefix, "db-init-task-role"]]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: "sts:AssumeRole"
+
+  # ECS Task Definition for database initialization
+  InitTaskDefinition:
+    Type: "AWS::ECS::TaskDefinition"
+    Properties:
+      Family: !Join ["-", [!Ref ResourceNamePrefix, "db-init"]]
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: "256"
+      Memory: "512"
+      ExecutionRoleArn: !GetAtt InitTaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt InitTaskRole.Arn
+      ContainerDefinitions:
+        - Name: db-init
+          Image: postgres:15-alpine
+          Essential: true
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref InitTaskLogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: init
+          Environment:
+            - Name: PGHOST
+              Value: !GetAtt Database.Endpoint.Address
+            - Name: PGPORT
+              Value: !GetAtt Database.Endpoint.Port
+            - Name: PGDATABASE
+              Value: orders
+            - Name: PGUSER
+              Value: testuser
+            - Name: PGPASSWORD
+              Value: !Ref DatabasePassword
+          EntryPoint:
+            - "/bin/sh"
+            - "-c"
+          Command:
+            - |
+              echo "Waiting for database to be ready..."
+              until pg_isready -h $PGHOST -p $PGPORT -U $PGUSER; do
+                echo "Database not ready, waiting..."
+                sleep 5
+              done
+              echo "Database is ready. Initializing schema and data..."
+
+              psql <<'EOSQL'
+              -- K6 Load Testing Database Schema and Data
+              -- Matches the schema from db/init.sql exactly
+
+              -- Categories
+              CREATE TABLE IF NOT EXISTS "CATEGORIES" (
+                "CATEGORY_ID" INTEGER NOT NULL,
+                "CATEGORY_NAME" VARCHAR(50),
+                CONSTRAINT "PK_CATEGORY_ID" PRIMARY KEY ("CATEGORY_ID")
+              );
+              INSERT INTO "CATEGORIES" ("CATEGORY_ID", "CATEGORY_NAME") VALUES
+                (1, 'Games'), (2, 'Educational'), (3, 'Business'),
+                (4, 'Personal'), (5, 'Graphics'), (6, 'Office Tools'), (7, 'Hardware')
+              ON CONFLICT DO NOTHING;
+
+              -- Regions
+              CREATE TABLE IF NOT EXISTS "REGIONS" (
+                "REGION_ID" INTEGER NOT NULL,
+                "REGION" VARCHAR(25),
+                CONSTRAINT "PK_REGION_ID" PRIMARY KEY ("REGION_ID")
+              );
+              INSERT INTO "REGIONS" ("REGION_ID", "REGION") VALUES
+                (1, 'USA East'), (2, 'USA West'), (3, 'USA Central'), (4, 'USA South')
+              ON CONFLICT DO NOTHING;
+
+              -- Suppliers
+              CREATE TABLE IF NOT EXISTS "SUPPLIERS" (
+                "SUPPLIER_ID" INTEGER NOT NULL,
+                "CONTACT" VARCHAR(50),
+                "COMPANY" VARCHAR(50),
+                "ADDRESS" VARCHAR(50),
+                "CITY" VARCHAR(25),
+                "STATE" CHAR(2),
+                "ZIP" CHAR(5),
+                CONSTRAINT "PK_SUPPLIER_ID" PRIMARY KEY ("SUPPLIER_ID")
+              );
+              INSERT INTO "SUPPLIERS" ("SUPPLIER_ID", "CONTACT", "COMPANY", "ADDRESS", "CITY", "STATE", "ZIP") VALUES
+                (1, 'Matthew Prasad', 'Cyber Opportunities', '1035 Riverview Rd.', 'Seattle', 'WA', '98104'),
+                (2, 'Avis Pons', 'Continental Innovations', '111 Biltmore Dr.', 'New York', 'NY', '10004'),
+                (3, 'Allan Haefner', 'Global Networks Ltd.', '17 Archwood Place', 'San Diego', 'CA', '92118'),
+                (4, 'Cody Chynoweth', 'Micro Production LLC', '3 Euclid Circle', 'Edison', 'NJ', '08837'),
+                (5, 'Edwina Defreitas', 'American Computer Vision', '24 Deerfield Dr.', 'Burlington', 'VT', '05401'),
+                (6, 'Jessie Fehrenbach', 'Unified Interworks', '516 Bunts St.', 'Pittsburgh', 'PA', '15215'),
+                (7, 'Clinton Orsi', 'Enigma Productions', '308 Magnolia St.', 'Rye', 'NY', '10580'),
+                (8, 'Jerri Govea', 'Advanced Integrity', '59 Sherbrook Rd.', 'Morristown', 'NJ', '07960'),
+                (9, 'Steve Ploom', 'Lockbox Servers', '12 Moorhouse Ave.', 'Oakland', 'CA', '90287'),
+                (10, 'Karen Mitchell', 'TechFlow Systems', '445 Innovation Way', 'Austin', 'TX', '78701'),
+                (11, 'David Chen', 'Pacific Data Corp', '890 Harbor Blvd.', 'Portland', 'OR', '97201'),
+                (12, 'Lisa Thompson', 'CloudFirst Inc', '234 Summit Ave.', 'Denver', 'CO', '80202'),
+                (13, 'Robert Garcia', 'DataStream Solutions', '567 River Rd.', 'Phoenix', 'AZ', '85001'),
+                (14, 'Jennifer Walsh', 'InfoTech Partners', '123 Tech Park Dr.', 'Atlanta', 'GA', '30301'),
+                (15, 'Michael Brown', 'Digital Dynamics', '789 Circuit Way', 'Dallas', 'TX', '75201')
+              ON CONFLICT DO NOTHING;
+
+              -- Products (matches original schema with PRICE, DESCRIPTION, NUMBER_INSTOCK, REORDER_LEVEL)
+              CREATE TABLE IF NOT EXISTS "PRODUCTS" (
+                "PRODUCT_ID" INTEGER NOT NULL,
+                "PRODUCT_NAME" VARCHAR(50),
+                "DESCRIPTION" VARCHAR(255),
+                "PRICE" NUMERIC(8,2),
+                "SUPPLIER_ID" INTEGER NOT NULL,
+                "CATEGORY_ID" INTEGER NOT NULL,
+                "NUMBER_INSTOCK" INTEGER,
+                "REORDER_LEVEL" INTEGER,
+                CONSTRAINT "PK_PRODUCT_ID" PRIMARY KEY ("PRODUCT_ID"),
+                CONSTRAINT "FK_PRODUCT_SUPPLIER" FOREIGN KEY ("SUPPLIER_ID") REFERENCES "SUPPLIERS" ("SUPPLIER_ID"),
+                CONSTRAINT "FK_PRODUCT_CATEGORY" FOREIGN KEY ("CATEGORY_ID") REFERENCES "CATEGORIES" ("CATEGORY_ID")
+              );
+              INSERT INTO "PRODUCTS" ("PRODUCT_ID", "PRODUCT_NAME", "DESCRIPTION", "PRICE", "SUPPLIER_ID", "CATEGORY_ID", "NUMBER_INSTOCK", "REORDER_LEVEL") VALUES
+                (1, 'Xconnect Server', 'XML connectivity tool', 2250.00, 5, 3, 7, 10),
+                (2, 'InsideView', 'Database browser', 125.00, 5, 3, 56, 50),
+                (3, 'Info Folder', 'Document management tool', 399.00, 1, 6, 55, 50),
+                (4, 'Green Planet', 'Personal health monitor', 75.00, 8, 4, 32, 25),
+                (5, 'House Hunter', 'House hunting assistant', 129.00, 8, 4, 104, 50),
+                (6, 'Fast Mail', 'Lightweight email agent', 39.00, 3, 6, 78, 50),
+                (7, 'Sync Me', 'Palm power sync', 145.00, 3, 4, 30, 25),
+                (8, 'WebCalendar', 'Web enabled calendar/org', 248.00, 2, 6, 18, 25),
+                (9, 'True Action', 'Java game toolkit', 398.00, 7, 4, 33, 25),
+                (10, 'Fancy Menus', 'Collection of menus', 49.00, 4, 5, 113, 50),
+                (11, 'Mega Icons', 'Over 10000 icons', 550.00, 4, 5, 34, 25),
+                (12, 'MeToo AppServer', 'Application server', 3000.00, 2, 3, 8, 10),
+                (13, 'Easy Chess', 'Chess game', 35.00, 7, 1, 72, 50),
+                (14, 'Fast Go Game', 'Chinese Go game', 200.00, 7, 1, 42, 25),
+                (15, 'Web Bridge', 'Bridge game', 105.00, 7, 1, 50, 50),
+                (16, 'Combat Hero', 'Action game', 29.00, 7, 1, 63, 50),
+                (17, 'Animal World', 'Educational software', 59.00, 6, 2, 59, 50),
+                (18, 'Learn ABC', 'Learn ABC', 75.00, 6, 2, 96, 50),
+                (19, 'Math for Me', 'Math tutor', 235.00, 6, 2, 67, 25),
+                (20, 'Barbies Fashion', 'Girls game', 79.00, 6, 1, 98, 50),
+                (21, 'Wireless Mouse', 'Wireless optical USB mouse', 40.00, 9, 7, 42, 25),
+                (22, 'Wireless Keyboard', 'Wireless USB keyboard', 40.00, 9, 7, 45, 25),
+                (23, '17 Inch LCD', '17 inch LCD monitor', 210.00, 9, 7, 0, 10),
+                (24, '19 inch LCD', '19 inch LCD monitor', 310.00, 9, 7, 20, 15),
+                (25, 'NetStorage', '500 GB network storage', 2850.00, 9, 7, 6, 5),
+                (26, 'CloudSync Pro', 'Cloud synchronization tool', 199.00, 10, 3, 45, 30),
+                (27, 'DataVault', 'Secure data storage', 599.00, 10, 3, 22, 15),
+                (28, 'QuickReport', 'Report generator', 349.00, 11, 6, 38, 25),
+                (29, 'FormBuilder', 'Form design tool', 249.00, 11, 6, 52, 40),
+                (30, 'PhotoEdit Pro', 'Professional photo editor', 449.00, 12, 5, 28, 20),
+                (31, 'VectorDraw', 'Vector graphics editor', 379.00, 12, 5, 35, 25),
+                (32, 'CodeMaster', 'IDE for developers', 599.00, 13, 3, 18, 15),
+                (33, 'TestRunner', 'Automated testing tool', 299.00, 13, 3, 42, 30),
+                (34, 'DBOptimizer', 'Database optimization', 799.00, 14, 3, 12, 10),
+                (35, 'NetMonitor', 'Network monitoring', 449.00, 14, 3, 25, 20),
+                (36, 'SpaceQuest', 'Space exploration game', 49.00, 7, 1, 85, 50),
+                (37, 'Racing Thunder', 'Racing simulation', 59.00, 7, 1, 92, 50),
+                (38, 'Puzzle Master', 'Brain training puzzles', 29.00, 7, 1, 120, 75),
+                (39, 'History Explorer', 'Interactive history', 89.00, 6, 2, 45, 30),
+                (40, 'Science Lab', 'Virtual science experiments', 149.00, 6, 2, 38, 25),
+                (41, '24 inch Monitor', '24 inch 4K monitor', 450.00, 9, 7, 15, 10),
+                (42, 'Gaming Headset', 'Surround sound headset', 129.00, 9, 7, 55, 35),
+                (43, 'Webcam HD', 'HD webcam with mic', 89.00, 9, 7, 68, 40),
+                (44, 'USB Hub 7-Port', '7-port USB 3.0 hub', 45.00, 9, 7, 95, 60),
+                (45, 'External SSD 1TB', '1TB portable SSD', 159.00, 15, 7, 32, 20),
+                (46, 'Backup Suite', 'Automated backup solution', 179.00, 15, 6, 48, 30),
+                (47, 'Password Manager', 'Secure password vault', 49.00, 15, 4, 150, 100),
+                (48, 'VPN Pro', 'Virtual private network', 79.00, 15, 4, 200, 150),
+                (49, 'Antivirus Plus', 'Complete security suite', 99.00, 15, 4, 175, 125),
+                (50, 'System Cleaner', 'PC optimization tool', 39.00, 15, 6, 220, 150)
+              ON CONFLICT DO NOTHING;
+
+              -- Customers
+              CREATE TABLE IF NOT EXISTS "CUSTOMERS" (
+                "CUSTOMER_ID" INTEGER NOT NULL,
+                "COMPANY_NAME" VARCHAR(50),
+                "ADDRESS" VARCHAR(50),
+                "CITY" VARCHAR(25),
+                "STATE" CHAR(2),
+                "ZIP" CHAR(5),
+                "REGION_ID" INTEGER NOT NULL,
+                "RESELLER" SMALLINT DEFAULT 0 NOT NULL,
+                CONSTRAINT "PK_CUSTOMER_ID" PRIMARY KEY ("CUSTOMER_ID"),
+                CONSTRAINT "FK_CUSTOMER_REGION" FOREIGN KEY ("REGION_ID") REFERENCES "REGIONS" ("REGION_ID")
+              );
+              INSERT INTO "CUSTOMERS" ("CUSTOMER_ID", "COMPANY_NAME", "ADDRESS", "CITY", "STATE", "ZIP", "REGION_ID", "RESELLER")
+              SELECT
+                id,
+                'Company ' || id,
+                id || ' Main Street',
+                (ARRAY['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'Austin'])[((id - 1) % 10) + 1],
+                (ARRAY['NY', 'CA', 'IL', 'TX', 'AZ', 'PA', 'TX', 'CA', 'TX', 'TX'])[((id - 1) % 10) + 1],
+                LPAD((10000 + id)::text, 5, '0'),
+                ((id - 1) % 4) + 1,
+                CASE WHEN id % 5 = 0 THEN 1 ELSE 0 END
+              FROM generate_series(1, 100) AS id
+              ON CONFLICT DO NOTHING;
+
+              -- Sales Employees (with QUOTA instead of HIRE_DATE)
+              CREATE TABLE IF NOT EXISTS "SALES_EMPLOYEES" (
+                "EMPLOYEE_ID" INTEGER NOT NULL,
+                "FIRST_NAME" VARCHAR(25),
+                "LAST_NAME" VARCHAR(25),
+                "QUOTA" NUMERIC(10,2),
+                "REGION_ID" INTEGER NOT NULL,
+                CONSTRAINT "PK_EMPLOYEE" PRIMARY KEY ("EMPLOYEE_ID"),
+                CONSTRAINT "FK_EMPLOYEE_REGION" FOREIGN KEY ("REGION_ID") REFERENCES "REGIONS" ("REGION_ID")
+              );
+              INSERT INTO "SALES_EMPLOYEES" ("EMPLOYEE_ID", "FIRST_NAME", "LAST_NAME", "QUOTA", "REGION_ID") VALUES
+                (1, 'Sue', 'Marston', 150000.00, 1),
+                (2, 'Eric', 'Heggenbart', 250000.00, 1),
+                (3, 'Robert', 'Miller', 150000.00, 2),
+                (4, 'Annie', 'Duke', 250000.00, 2),
+                (5, 'James', 'Wilson', 200000.00, 3),
+                (6, 'Maria', 'Garcia', 175000.00, 3),
+                (7, 'David', 'Lee', 225000.00, 4),
+                (8, 'Sarah', 'Johnson', 180000.00, 4),
+                (9, 'Michael', 'Brown', 200000.00, 1),
+                (10, 'Jennifer', 'Davis', 190000.00, 2)
+              ON CONFLICT DO NOTHING;
+
+              -- Contacts (without EMAIL and PHONE)
+              CREATE TABLE IF NOT EXISTS "CONTACTS" (
+                "CONTACT_ID" INTEGER NOT NULL,
+                "CUSTOMER_ID" INTEGER NOT NULL,
+                "FIRST_NAME" VARCHAR(25),
+                "LAST_NAME" VARCHAR(25),
+                CONSTRAINT "PK_CONTACT" PRIMARY KEY ("CONTACT_ID"),
+                CONSTRAINT "FK_CONTACT_CUSTOMER" FOREIGN KEY ("CUSTOMER_ID") REFERENCES "CUSTOMERS" ("CUSTOMER_ID")
+              );
+              INSERT INTO "CONTACTS" ("CONTACT_ID", "CUSTOMER_ID", "FIRST_NAME", "LAST_NAME")
+              SELECT
+                c.id, c.id,
+                (ARRAY['John', 'Jane', 'Michael', 'Sarah', 'David', 'Emily', 'James', 'Lisa', 'Robert', 'Maria',
+                       'William', 'Jennifer', 'Richard', 'Patricia', 'Joseph', 'Linda', 'Thomas', 'Barbara', 'Charles', 'Susan',
+                       'Christopher', 'Jessica', 'Daniel', 'Margaret', 'Matthew', 'Nancy', 'Anthony', 'Karen', 'Mark', 'Betty'])[1 + (c.id % 30)],
+                (ARRAY['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+                       'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+                       'Lee', 'Perez', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Ramirez', 'Lewis', 'Robinson'])[1 + ((c.id * 7) % 30)]
+              FROM generate_series(1, 100) AS c(id)
+              ON CONFLICT DO NOTHING;
+
+              -- Orders (with DISCOUNT and PAID columns, TIMESTAMP for ORDER_DATE)
+              CREATE TABLE IF NOT EXISTS "ORDERS" (
+                "ORDER_ID" INTEGER NOT NULL,
+                "CUSTOMER_ID" INTEGER NOT NULL,
+                "EMPLOYEE_ID" INTEGER NOT NULL,
+                "ORDER_DATE" TIMESTAMP,
+                "DISCOUNT" NUMERIC(3,2),
+                "PAID" SMALLINT DEFAULT 0 NOT NULL,
+                CONSTRAINT "PK_ORDERS" PRIMARY KEY ("ORDER_ID"),
+                CONSTRAINT "FK_ORDER_CUSTOMER" FOREIGN KEY ("CUSTOMER_ID") REFERENCES "CUSTOMERS" ("CUSTOMER_ID"),
+                CONSTRAINT "FK_ORDER_EMPLOYEE" FOREIGN KEY ("EMPLOYEE_ID") REFERENCES "SALES_EMPLOYEES" ("EMPLOYEE_ID")
+              );
+              INSERT INTO "ORDERS" ("ORDER_ID", "CUSTOMER_ID", "EMPLOYEE_ID", "ORDER_DATE", "DISCOUNT", "PAID")
+              SELECT
+                12000 + s.id AS "ORDER_ID",
+                1 + (s.id % 100) AS "CUSTOMER_ID",
+                1 + (s.id % 10) AS "EMPLOYEE_ID",
+                TIMESTAMP '2023-01-01' + (s.id % 730) * INTERVAL '1 day' + (s.id % 24) * INTERVAL '1 hour' AS "ORDER_DATE",
+                CASE WHEN s.id % 10 = 0 THEN 0.10 WHEN s.id % 20 = 0 THEN 0.15 WHEN s.id % 50 = 0 THEN 0.20 ELSE 0.00 END AS "DISCOUNT",
+                CASE WHEN s.id % 15 = 0 THEN 0 ELSE 1 END AS "PAID"
+              FROM generate_series(1, 3000) AS s(id)
+              ON CONFLICT DO NOTHING;
+
+              -- Order Details (composite primary key, no ORDER_DETAIL_ID, no DISCOUNT)
+              CREATE TABLE IF NOT EXISTS "ORDER_DETAILS" (
+                "ORDER_ID" INTEGER NOT NULL,
+                "PRODUCT_ID" INTEGER NOT NULL,
+                "QUANTITY" INTEGER,
+                CONSTRAINT "PK_ORDER_DETAILS" PRIMARY KEY ("ORDER_ID", "PRODUCT_ID"),
+                CONSTRAINT "FK_DETAIL_ORDER" FOREIGN KEY ("ORDER_ID") REFERENCES "ORDERS" ("ORDER_ID"),
+                CONSTRAINT "FK_DETAIL_PRODUCT" FOREIGN KEY ("PRODUCT_ID") REFERENCES "PRODUCTS" ("PRODUCT_ID")
+              );
+              INSERT INTO "ORDER_DETAILS" ("ORDER_ID", "PRODUCT_ID", "QUANTITY")
+              SELECT
+                o."ORDER_ID",
+                p.product_id,
+                1 + ((o."ORDER_ID" + p.product_id) % 20) AS "QUANTITY"
+              FROM "ORDERS" o
+              CROSS JOIN LATERAL (
+                SELECT DISTINCT 1 + ((o."ORDER_ID" * idx + (o."ORDER_ID" % 100)) % 50) AS product_id
+                FROM generate_series(1, 5) AS idx
+              ) p
+              ON CONFLICT DO NOTHING;
+
+              -- Create indexes
+              CREATE INDEX IF NOT EXISTS "IDX_ORDERS_CUSTOMER" ON "ORDERS" ("CUSTOMER_ID");
+              CREATE INDEX IF NOT EXISTS "IDX_ORDERS_EMPLOYEE" ON "ORDERS" ("EMPLOYEE_ID");
+              CREATE INDEX IF NOT EXISTS "IDX_ORDERS_DATE" ON "ORDERS" ("ORDER_DATE");
+              CREATE INDEX IF NOT EXISTS "IDX_ORDER_DETAILS_PRODUCT" ON "ORDER_DETAILS" ("PRODUCT_ID");
+              CREATE INDEX IF NOT EXISTS "IDX_CUSTOMERS_REGION" ON "CUSTOMERS" ("REGION_ID");
+              CREATE INDEX IF NOT EXISTS "IDX_PRODUCTS_CATEGORY" ON "PRODUCTS" ("CATEGORY_ID");
+              CREATE INDEX IF NOT EXISTS "IDX_PRODUCTS_SUPPLIER" ON "PRODUCTS" ("SUPPLIER_ID");
+
+              -- Verify row counts
+              SELECT 'CATEGORIES' as table_name, COUNT(*) as rows FROM "CATEGORIES"
+              UNION ALL SELECT 'REGIONS', COUNT(*) FROM "REGIONS"
+              UNION ALL SELECT 'SUPPLIERS', COUNT(*) FROM "SUPPLIERS"
+              UNION ALL SELECT 'PRODUCTS', COUNT(*) FROM "PRODUCTS"
+              UNION ALL SELECT 'CUSTOMERS', COUNT(*) FROM "CUSTOMERS"
+              UNION ALL SELECT 'SALES_EMPLOYEES', COUNT(*) FROM "SALES_EMPLOYEES"
+              UNION ALL SELECT 'CONTACTS', COUNT(*) FROM "CONTACTS"
+              UNION ALL SELECT 'ORDERS', COUNT(*) FROM "ORDERS"
+              UNION ALL SELECT 'ORDER_DETAILS', COUNT(*) FROM "ORDER_DETAILS"
+              ORDER BY table_name;
+              EOSQL
+
+              echo "Database initialization complete!"
+
+  # IAM Role for Lambda function
+  InitLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Join ["-", [!Ref ResourceNamePrefix, "db-init-lambda-role"]]
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+      Policies:
+        - PolicyName: EcsTaskManagement
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ecs:RunTask"
+                  - "ecs:DescribeTasks"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "iam:PassRole"
+                Resource:
+                  - !GetAtt InitTaskExecutionRole.Arn
+                  - !GetAtt InitTaskRole.Arn
+
+  # Lambda function to orchestrate database initialization
+  InitFunction:
+    Type: "AWS::Lambda::Function"
+    Properties:
+      FunctionName: !Join ["-", [!Ref ResourceNamePrefix, "db-init"]]
+      Runtime: "nodejs18.x"
+      Role: !GetAtt InitLambdaRole.Arn
+      Handler: "index.handler"
+      Timeout: 300
+      Description: Initialize the k6 test database with schema and data
+      Code:
+        ZipFile: |
+          const { ECSClient, RunTaskCommand, DescribeTasksCommand } = require("@aws-sdk/client-ecs");
+          const https = require("https");
+          const url = require("url");
+
+          exports.handler = async function(event, context) {
+              console.log("REQUEST RECEIVED:\n" + JSON.stringify(event));
+              let responseStatus = "FAILED";
+              let responseData = {};
+
+              if (event.RequestType === "Delete") {
+                  // Nothing to clean up on delete
+                  await sendResponse(event, context, "SUCCESS", {});
+                  return;
+              }
+
+              try {
+                  const client = new ECSClient({ region: event.ResourceProperties.Region });
+
+                  // Start the initialization task
+                  const runTaskResponse = await client.send(new RunTaskCommand({
+                      cluster: event.ResourceProperties.ClusterArn,
+                      taskDefinition: event.ResourceProperties.TaskDefinitionArn,
+                      launchType: "FARGATE",
+                      networkConfiguration: {
+                          awsvpcConfiguration: {
+                              subnets: event.ResourceProperties.SubnetIds,
+                              securityGroups: [event.ResourceProperties.SecurityGroupId],
+                              assignPublicIp: event.ResourceProperties.AssignPublicIp
+                          }
+                      }
+                  }));
+
+                  if (!runTaskResponse.tasks || runTaskResponse.tasks.length === 0) {
+                      throw new Error("Failed to start task: " + JSON.stringify(runTaskResponse.failures));
+                  }
+
+                  const taskArn = runTaskResponse.tasks[0].taskArn;
+                  console.log("Started task: " + taskArn);
+
+                  // Poll until task completes
+                  const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+                  let taskStatus = "PENDING";
+                  let exitCode = null;
+
+                  while (taskStatus !== "STOPPED") {
+                      await delay(10000);
+                      const describeResponse = await client.send(new DescribeTasksCommand({
+                          cluster: event.ResourceProperties.ClusterArn,
+                          tasks: [taskArn]
+                      }));
+
+                      if (describeResponse.tasks && describeResponse.tasks.length > 0) {
+                          taskStatus = describeResponse.tasks[0].lastStatus;
+                          console.log("Task status: " + taskStatus);
+
+                          if (taskStatus === "STOPPED") {
+                              const container = describeResponse.tasks[0].containers[0];
+                              exitCode = container.exitCode;
+                              console.log("Task finished with exit code: " + exitCode);
+                          }
+                      }
+                  }
+
+                  if (exitCode === 0) {
+                      responseStatus = "SUCCESS";
+                      responseData = { Message: "Database initialized successfully" };
+                  } else {
+                      responseData = { Error: "Task exited with code " + exitCode };
+                  }
+              } catch (ex) {
+                  console.log("Error: " + ex.message);
+                  responseData = { Error: ex.message };
+              }
+
+              await sendResponse(event, context, responseStatus, responseData);
+          };
+
+          async function sendResponse(event, context, status, data) {
+              const responseBody = JSON.stringify({
+                  Status: status,
+                  Reason: "See CloudWatch Log Stream: " + context.logStreamName,
+                  PhysicalResourceId: context.logStreamName,
+                  StackId: event.StackId,
+                  RequestId: event.RequestId,
+                  LogicalResourceId: event.LogicalResourceId,
+                  Data: data
+              });
+
+              const parsedUrl = url.parse(event.ResponseURL);
+              const options = {
+                  hostname: parsedUrl.hostname,
+                  port: 443,
+                  path: parsedUrl.path,
+                  method: "PUT",
+                  headers: {
+                      "Content-Type": "",
+                      "Content-Length": responseBody.length
+                  }
+              };
+
+              return new Promise((resolve, reject) => {
+                  const req = https.request(options, (res) => {
+                      console.log("Response status: " + res.statusCode);
+                      resolve();
+                  });
+                  req.on("error", (err) => {
+                      console.log("Error sending response: " + err);
+                      reject(err);
+                  });
+                  req.write(responseBody);
+                  req.end();
+              });
+          }
+
+  # Custom Resource to trigger database initialization after RDS is created
+  DatabaseInitialization:
+    Type: "Custom::DatabaseInit"
+    DependsOn:
+      - Database
+      - InitTaskDefinition
+      - InitFunction
+    Properties:
+      ServiceToken: !GetAtt InitFunction.Arn
+      Region: !Ref "AWS::Region"
+      ClusterArn: !Ref EcsClusterArn
+      TaskDefinitionArn: !Ref InitTaskDefinition
+      SubnetIds: !Ref SubnetIds
+      SecurityGroupId: !Ref DatabaseSecurityGroup
+      AssignPublicIp: !Ref AssignPublicIp
+
+Outputs:
+  DatabaseEndpoint:
+    Description: The endpoint for the PostgreSQL database
+    Value: !GetAtt Database.Endpoint.Address
+    Export:
+      Name: !Join ["-", [!Ref ResourceNamePrefix, "db-endpoint"]]
+  DatabasePort:
+    Description: The port for the PostgreSQL database
+    Value: !GetAtt Database.Endpoint.Port
+    Export:
+      Name: !Join ["-", [!Ref ResourceNamePrefix, "db-port"]]
+  DatabaseName:
+    Description: The database name
+    Value: orders
+  DatabaseUser:
+    Description: The database username
+    Value: testuser
+  JDBCConnectionString:
+    Description: JDBC connection string for StyleBI data source
+    Value: !Join ["", ["jdbc:postgresql://", !GetAtt Database.Endpoint.Address, ":", !GetAtt Database.Endpoint.Port, "/orders"]]
+  SecurityGroupId:
+    Description: Security group ID for the database
+    Value: !Ref DatabaseSecurityGroup
+  InitializationStatus:
+    Description: Database initialization status
+    Value: !GetAtt DatabaseInitialization.Message
